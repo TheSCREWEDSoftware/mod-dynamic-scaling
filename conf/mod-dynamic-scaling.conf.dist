@@ -1,0 +1,313 @@
+[worldserver]
+
+########################################
+# mod-dynamic-scaling configuration
+########################################
+#
+# Where settings come from, most specific first:
+#   1. `dynamic_scaling_zone` row for the area     (e.g. Northshire Valley)
+#   2. `dynamic_scaling_zone` row for the zone     (e.g. Elwynn Forest)
+#   3. `dynamic_scaling_map`  row for the map      (an instance + difficulty, or a whole continent)
+#   4. The defaults in this file
+#
+# Level windows (level_min / level_max in both tables):
+#   N  = creatures never go below / above level N
+#   0  = creatures never go below / above their own level
+#   0/0 = creatures keep their own level (cities, starting areas)
+
+#
+#    DynamicScaling.Enable
+#        Description: Turn the whole module on or off.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.Enable = 1
+
+#
+#    DynamicScaling.Announce
+#        Description: Tell players on login that the module runs, and tell them their Simple mode buff
+#                     when they enter an instance.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.Announce = 1
+
+#
+#    DynamicScaling.PlayerToggle.Enable
+#        Description: Let players turn scaling off or on for themselves with .scaling off / .scaling on.
+#                     A player with scaling off gets no Simple mode buff and no XP floors, and does not
+#                     pull creature levels (in the open world creatures near only them keep their own level;
+#                     in instances they are left out of the group's reference level).
+#        Default:     1 - enabled
+#                     0 - disabled (everyone is scaled)
+
+DynamicScaling.PlayerToggle.Enable = 1
+
+#
+#    DynamicScaling.PlayerToggle.Default
+#        Description: Scaling state for players who never used .scaling.
+#        Default:     1 - on
+#                     0 - off (players opt in)
+
+DynamicScaling.PlayerToggle.Default = 1
+
+########################################
+# Instances (dungeons and raids)
+########################################
+#
+#    DynamicScaling.Instance.Enable
+#        Description: Scale instances.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.Instance.Enable = 1
+
+#
+#    DynamicScaling.Instance.DefaultMode
+#        Description: Mode for instances with no `dynamic_scaling_map` row (or a row with mode 255).
+#        Default:     1 - Simple   (SoloCraft style: players get stats / spell power for every missing player)
+#                     2 - Advanced (AutoBalance style: creatures get less health / damage for fewer players)
+#                     0 - Off      (level scaling and respawn can still apply)
+
+DynamicScaling.Instance.DefaultMode = 1
+
+#
+#    DynamicScaling.Instance.IncludeRaids
+#    DynamicScaling.Instance.IncludeHeroics
+#        Description: Scale raids / heroic difficulties at all.
+#        Default:     1 - enabled
+
+DynamicScaling.Instance.IncludeRaids = 1
+DynamicScaling.Instance.IncludeHeroics = 1
+
+#
+#    DynamicScaling.Instance.LevelScaling.Enable
+#        Description: Move instance creature levels to the group's level (inside the level window).
+#                     Every creature moves by the same amount, so bosses stay above their trash.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.Instance.LevelScaling.Enable = 1
+
+#
+#    DynamicScaling.Instance.LevelScaling.Reference
+#        Description: Which player level the instance scales to.
+#        Default:     0 - highest player
+#                     1 - average
+#                     2 - lowest player
+
+DynamicScaling.Instance.LevelScaling.Reference = 0
+
+#
+#    DynamicScaling.Instance.LevelScaling.DefaultLevelMin
+#    DynamicScaling.Instance.LevelScaling.DefaultLevelMax
+#        Description: Level window for instances with no row. 0 = the creature's own level.
+#                     1 / 80 lets every instance scale fully both ways.
+#        Default:     1 / 80
+
+DynamicScaling.Instance.LevelScaling.DefaultLevelMin = 1
+DynamicScaling.Instance.LevelScaling.DefaultLevelMax = 80
+
+#
+#    DynamicScaling.Instance.Simple.SpellId
+#        Description: Server side aura that carries the Simple mode stat buff (see the SQL file).
+#        Default:     150100
+
+DynamicScaling.Instance.Simple.SpellId = 150100
+
+#
+#    DynamicScaling.Instance.Simple.StatsMult
+#        Description: Stat bonus, in percent, for each missing player. Solo in a 5 player dungeon at 100
+#                     gives +400% stats (as strong as 5 players).
+#        Default:     100
+
+DynamicScaling.Instance.Simple.StatsMult = 100
+
+#
+#    DynamicScaling.Instance.Simple.SpellPowerMult
+#        Description: Extra spell power for casters, as a multiple of their gear spell power, per missing player.
+#        Default:     1.0
+
+DynamicScaling.Instance.Simple.SpellPowerMult = 1.0
+
+#
+#    DynamicScaling.Instance.Simple.XPPenalty
+#        Description: Scale instance XP by group size / expected players while buffed.
+#        Default:     0 - disabled
+#                     1 - enabled
+
+DynamicScaling.Instance.Simple.XPPenalty = 0
+
+#
+#    DynamicScaling.Instance.Advanced.HealthFloor
+#    DynamicScaling.Instance.Advanced.DamageFloor
+#    DynamicScaling.Instance.Advanced.ManaFloor
+#        Description: Creature health / damage / mana with a single player, as a fraction of normal.
+#                     It rises in a straight line to 1.0 at the expected player count.
+#        Default:     0.3 / 0.3 / 0.5
+
+DynamicScaling.Instance.Advanced.HealthFloor = 0.3
+DynamicScaling.Instance.Advanced.DamageFloor = 0.3
+DynamicScaling.Instance.Advanced.ManaFloor = 0.5
+
+#
+#    DynamicScaling.Instance.Advanced.HealthMult
+#    DynamicScaling.Instance.Advanced.DamageMult
+#        Description: Global multipliers on top of everything else in Advanced mode.
+#        Default:     1.0
+
+DynamicScaling.Instance.Advanced.HealthMult = 1.0
+DynamicScaling.Instance.Advanced.DamageMult = 1.0
+
+#
+#    DynamicScaling.Instance.Respawn.Enable
+#        Description: Releasing your spirit inside an instance brings you back alive at the instance entrance
+#                     (or the map row's respawn_x/y/z/o), instead of the graveyard outside.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.Instance.Respawn.Enable = 1
+
+#
+#    DynamicScaling.Instance.Respawn.Raids
+#        Description: Also respawn inside raids.
+#        Default:     1 - enabled
+
+DynamicScaling.Instance.Respawn.Raids = 1
+
+#
+#    DynamicScaling.Instance.Respawn.HealthPct
+#        Description: Health and mana percent after the respawn.
+#        Default:     50
+
+DynamicScaling.Instance.Respawn.HealthPct = 50
+
+########################################
+# Open world
+########################################
+#
+#    DynamicScaling.World.Enable
+#        Description: Scale open world creatures to trail behind the player's level.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.World.Enable = 1
+
+#
+#    DynamicScaling.World.DefaultMode
+#        Description: Mode for places with no zone, area or map row. The shipped zone rows turn every
+#                     outdoor zone on (mode 1), so 0 here only affects places without a row.
+#        Default:     0 - Off
+#                     1 - Simple   (trail behind the player inside the zone's level window)
+#                     2 - Advanced (also per row trail_levels, health_mult, damage_mult, xp_min_pct)
+
+DynamicScaling.World.DefaultMode = 0
+
+#
+#    DynamicScaling.World.TrailLevels
+#        Description: How many levels creatures sit below the player.
+#        Default:     2
+
+DynamicScaling.World.TrailLevels = 2
+
+#
+#    DynamicScaling.World.LevelSpread
+#        Description: Keep up to this many levels of the creature's own template range, so a pack is not
+#                     all one level.
+#        Default:     1
+
+DynamicScaling.World.LevelSpread = 1
+
+#
+#    DynamicScaling.World.Reference
+#        Description: Which nearby player a creature scales to.
+#        Default:     3 - nearest
+#                     0 - highest level
+#                     2 - lowest level
+
+DynamicScaling.World.Reference = 3
+
+#
+#    DynamicScaling.World.GroupAverage
+#        Description: If that player is in a group, use the average level of the group members nearby.
+#        Default:     1 - enabled
+
+DynamicScaling.World.GroupAverage = 1
+
+#
+#    DynamicScaling.World.Range
+#        Description: Yards around a creature to look for players.
+#        Default:     60
+
+DynamicScaling.World.Range = 60
+
+#
+#    DynamicScaling.World.UpdateInterval
+#        Description: Milliseconds between checks per creature. Creatures only change while out of combat.
+#        Default:     2000
+
+DynamicScaling.World.UpdateInterval = 2000
+
+#
+#    DynamicScaling.World.RescaleCooldown
+#        Description: Milliseconds a creature keeps a level before it may change again.
+#        Default:     10000
+
+DynamicScaling.World.RescaleCooldown = 10000
+
+#
+#    DynamicScaling.World.ScaleNpcFlags
+#        Description: Also scale creatures with NPC flags (vendors, quest givers, trainers...).
+#        Default:     0 - disabled
+
+DynamicScaling.World.ScaleNpcFlags = 0
+
+#
+#    DynamicScaling.World.ScaleElites
+#    DynamicScaling.World.ScaleRares
+#    DynamicScaling.World.ScaleWorldBosses
+#        Description: Which creature ranks scale in the open world.
+#        Default:     1 / 1 / 0
+
+DynamicScaling.World.ScaleElites = 1
+DynamicScaling.World.ScaleRares = 1
+DynamicScaling.World.ScaleWorldBosses = 0
+
+#
+#    DynamicScaling.World.XP.AlwaysAward
+#        Description: Kills that give no XP (gray) still give a share of what a creature TrailLevels below
+#                     you would give. Players who already got XP for the kill are not touched.
+#        Default:     1 - enabled
+
+DynamicScaling.World.XP.AlwaysAward = 1
+
+#
+#    DynamicScaling.World.XP.MinPct
+#        Description: That share, in percent.
+#        Default:     25
+
+DynamicScaling.World.XP.MinPct = 25
+
+#
+#    DynamicScaling.World.XP.OnlyScaledZones
+#        Description: Only in places where open world scaling is on.
+#        Default:     1 - enabled
+
+DynamicScaling.World.XP.OnlyScaledZones = 1
+
+#
+#    DynamicScaling.World.QuestXP.Enable
+#        Description: Quests trail behind your level for XP: a quest never gives less than MinPct percent
+#                     of what it would give if its level were TrailLevels below yours.
+#        Default:     1 - enabled
+
+DynamicScaling.World.QuestXP.Enable = 1
+DynamicScaling.World.QuestXP.TrailLevels = 2
+DynamicScaling.World.QuestXP.MinPct = 50
+
+#
+#    DynamicScaling.World.QuestXP.OnlyScaledZones
+#        Description: Only for quests in places where open world scaling is on.
+#        Default:     1 - enabled
+
+DynamicScaling.World.QuestXP.OnlyScaledZones = 1
