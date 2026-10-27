@@ -82,6 +82,13 @@ void DynamicScalingMgr::LoadConfig()
     c.playerToggle = sConfigMgr->GetOption<bool>("DynamicScaling.PlayerToggle.Enable", true);
     c.playerDefault = sConfigMgr->GetOption<bool>("DynamicScaling.PlayerToggle.Default", true);
 
+    // The other module's settings live in the same config manager; quiet lookups, since it may not be installed
+    c.collectiveSetting = sConfigMgr->GetOption<bool>("DynamicScaling.Collective.WorldRandomizer", true);
+    c.collective = c.collectiveSetting &&
+        sConfigMgr->GetOption<bool>("Randomizer.Enable", false, false) &&
+        sConfigMgr->GetOption<bool>("Randomizer.World.Enable", false, false) &&
+        sConfigMgr->GetOption<bool>("Randomizer.Collective.DynamicScaling", false, false);
+
     c.instanceEnable = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Enable", true);
     c.instanceDefaultMode = ToMode(sConfigMgr->GetOption<uint32>("DynamicScaling.Instance.DefaultMode", 1),
         ScalingMode::Simple);
@@ -272,6 +279,28 @@ void DynamicScalingMgr::ApplyEntryLevelOverrides()
         LOG_INFO("module", "mod-dynamic-scaling: overrode {} instance entry level requirements.", count);
 }
 
+void DynamicScalingMgr::LoadCollective()
+{
+    _collectiveBrackets.clear();
+    if (!_config.collective)
+        return;
+
+    // Written by mod-world-randomizer at startup (before this runs, at OnStartup)
+    if (QueryResult result = WorldDatabase.Query("SELECT `map_id`, `level_min`, `level_max` "
+        "FROM `world_randomizer_dungeon_bracket`"))
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            _collectiveBrackets[fields[0].Get<uint32>()] = { fields[1].Get<uint8>(), fields[2].Get<uint8>() };
+        } while (result->NextRow());
+    }
+
+    LOG_INFO("module", "mod-dynamic-scaling: collective with mod-world-randomizer, {} dungeons scale inside their "
+        "bracket; open world scaling is left to the randomizer.", _collectiveBrackets.size());
+    BumpSettingsVersion();
+}
+
 InstanceScalingRow const* DynamicScalingMgr::FindInstanceRow(uint32 mapId, uint8 difficulty) const
 {
     auto itr = _instanceRows.find(MakeInstanceKey(mapId, difficulty));
@@ -330,6 +359,19 @@ bool DynamicScalingMgr::GetInstanceSettings(Map const* map, InstanceSettings& ou
     if (!out.expectedPlayers)
         out.expectedPlayers = 5;
 
+    // Collective: Simple mode, scaling inside the bracket the randomizer gave this dungeon's entrance zone
+    if (_config.collective)
+    {
+        auto itr = _collectiveBrackets.find(map->GetId());
+        if (itr != _collectiveBrackets.end())
+        {
+            out.mode = ScalingMode::Simple;
+            out.levelScaling = true;
+            out.levelMin = itr->second.first;
+            out.levelMax = itr->second.second;
+        }
+    }
+
     out.baseLevel = row ? row->baseLevel : 0;
     if (!out.baseLevel)
     {
@@ -365,7 +407,8 @@ bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 area
 {
     out = ZoneSettings();
 
-    if (!_config.enable || !_config.worldEnable)
+    // Collective with the randomizer: it owns open world levels
+    if (!_config.enable || !_config.worldEnable || _config.collective)
         return false;
 
     // The most specific row wins: area, then zone, then the whole map

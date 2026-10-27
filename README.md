@@ -19,6 +19,20 @@ Extras:
 - **XP always awarded**: gray kills and low quests still give some XP in scaled zones.
 - **Player toggle**: players choose `.scaling on` / `.scaling off`; the server decides if they may and the default.
 
+## With mod-world-randomizer (collective)
+
+When both modules run and both collective switches are on (`DynamicScaling.Collective.WorldRandomizer` here,
+`Randomizer.Collective.DynamicScaling` there, both on by default), each module reads the other's settings from the
+config, and they split the work:
+
+- the randomizer writes each dungeon's bracket (from its entrance zone) to `world_randomizer_dungeon_bracket` at
+  startup and stops shifting dungeon levels itself,
+- this module reads it at startup and scales those dungeons in Simple mode, to the group's level but inside that
+  bracket: Ragefire Chasm in a 31-40 bracket scales between 31 and 40,
+- open world scaling here is off, since the randomizer sets zone levels.
+
+Turn either switch off and the two modules ignore each other.
+
 ## Where settings come from
 
 The most specific row wins:

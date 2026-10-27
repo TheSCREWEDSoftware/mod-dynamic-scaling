@@ -147,6 +147,11 @@ struct DSConfig
     bool enable = true;
     bool announce = true;
 
+    // Collective with mod-world-randomizer: dungeons scale (Simple) inside the bracket their entrance zone landed
+    // in, and the open world is left to the randomizer. Needs both modules' collective switches on.
+    bool collectiveSetting = true;
+    bool collective = false;
+
     // Players may turn scaling off for themselves (.scaling on/off)
     bool playerToggle = true;
     bool playerDefault = true;
@@ -209,6 +214,8 @@ public:
     void LoadConfig();
     void LoadTables();
     void ApplyEntryLevelOverrides();
+    void LoadCollective();
+    std::size_t CollectiveCount() const { return _collectiveBrackets.size(); }
 
     DSConfig const& Config() const { return _config; }
     uint32 GetSettingsVersion() const { return _settingsVersion; }
@@ -278,6 +285,7 @@ private:
     };
     std::unordered_map<ObjectGuid::LowType, EntryPosition> _entryPositions;
     std::unordered_map<ObjectGuid::LowType, bool> _playerChoices;
+    std::unordered_map<uint32, std::pair<uint8, uint8>> _collectiveBrackets; // dungeon map -> randomizer bracket
     std::unordered_map<ObjectGuid::LowType, int32> _lastAnnounced; // stat percent last told to the player
 };
 

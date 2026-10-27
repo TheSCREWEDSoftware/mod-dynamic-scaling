@@ -51,7 +51,7 @@ class DynamicScalingWorldScript : public WorldScript
 {
 public:
     DynamicScalingWorldScript() : WorldScript("DynamicScalingWorldScript",
-        { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_BEFORE_WORLD_INITIALIZED }) { }
+        { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_BEFORE_WORLD_INITIALIZED, WORLDHOOK_ON_STARTUP }) { }
 
     void OnAfterConfigLoad(bool reload) override
     {
@@ -64,6 +64,12 @@ public:
     {
         sDynamicScaling->LoadTables();
         sDynamicScaling->ApplyEntryLevelOverrides();
+    }
+
+    // After every module's OnBeforeWorldInitialized, so mod-world-randomizer has written its dungeon brackets
+    void OnStartup() override
+    {
+        sDynamicScaling->LoadCollective();
     }
 };
 

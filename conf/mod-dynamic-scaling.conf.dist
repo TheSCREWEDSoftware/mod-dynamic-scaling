@@ -51,6 +51,20 @@ DynamicScaling.PlayerToggle.Enable = 1
 
 DynamicScaling.PlayerToggle.Default = 1
 
+#
+#    DynamicScaling.Collective.WorldRandomizer
+#        Description: Work together with mod-world-randomizer. Only takes effect when that module is installed and
+#                     enabled (Randomizer.Enable and Randomizer.World.Enable) and its own switch
+#                     Randomizer.Collective.DynamicScaling is on too. Then:
+#                       - dungeons and raids use Simple mode, with creature levels scaled to the group inside the
+#                         bracket their entrance zone landed in (RFC in a 31-40 bracket scales between 31 and 40),
+#                       - open world scaling is off, because the randomizer sets zone levels itself.
+#                     Dungeons whose entrance is not in a shuffled zone keep the normal settings.
+#        Default:     1 - enabled
+#                     0 - disabled (the two modules ignore each other)
+
+DynamicScaling.Collective.WorldRandomizer = 1
+
 ########################################
 # Instances (dungeons and raids)
 ########################################
