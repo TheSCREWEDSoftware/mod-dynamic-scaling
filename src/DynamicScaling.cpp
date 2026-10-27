@@ -651,7 +651,10 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
     Map* map = player->GetMap();
     InstanceSettings settings;
     if (!IsScalingFor(player) || !GetInstanceSettings(map, settings) || settings.mode != ScalingMode::Simple)
+    {
+        _lastAnnounced.erase(player->GetGUID().GetCounter());
         return;
+    }
 
     uint32 groupSize = 1;
     if (Group* group = player->GetGroup())
