@@ -613,6 +613,8 @@ private:
             if (receivers.size() > 1)
                 xp /= uint32(receivers.size());
 
+            // Through the XP hook like core kill XP, so other modules (XP rates) see it too
+            sScriptMgr->OnPlayerGiveXP(player, xp, killed, PlayerXPSource::XPSOURCE_KILL);
             if (xp)
                 player->GiveXP(xp, killed);
         }

@@ -70,7 +70,7 @@ DynamicScalingMgr* DynamicScalingMgr::instance()
 
 uint8 DynamicScalingMgr::ClampLevel(int32 level)
 {
-    return uint8(std::clamp<int32>(level, 1, STRONG_MAX_LEVEL));
+    return uint8(std::clamp<int32>(level, 1, MAX_LEVEL));
 }
 
 void DynamicScalingMgr::LoadConfig()
