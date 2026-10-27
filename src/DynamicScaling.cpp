@@ -709,9 +709,11 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
             player->SetPower(POWER_MANA, player->GetMaxPower(POWER_MANA));
     }
 
-    if (_config.announce)
+    int32& lastAnnounced = _lastAnnounced[player->GetGUID().GetCounter()];
+    if (_config.announce && lastAnnounced != int32(statPct))
         ChatHandler(player->GetSession()).PSendSysMessage("|cff4CFF00[Dynamic Scaling]|r {}: group {}/{}, "
             "stats +{:.0f}%, spell power +{}.", map->GetMapName(), groupSize, expected, statPct, state.spellPowerBonus);
+    lastAnnounced = int32(statPct);
 }
 
 void DynamicScalingMgr::RemovePlayerBuff(Player* player)
@@ -752,6 +754,7 @@ void DynamicScalingMgr::ForgetPlayer(Player* player)
     _entryPositions.erase(player->GetGUID().GetCounter());
     _playerBuffs.erase(player->GetGUID().GetCounter());
     _playerChoices.erase(player->GetGUID().GetCounter());
+    _lastAnnounced.erase(player->GetGUID().GetCounter());
 }
 
 bool DynamicScalingMgr::IsScalingFor(Player const* player) const

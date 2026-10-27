@@ -278,6 +278,7 @@ private:
     };
     std::unordered_map<ObjectGuid::LowType, EntryPosition> _entryPositions;
     std::unordered_map<ObjectGuid::LowType, bool> _playerChoices;
+    std::unordered_map<ObjectGuid::LowType, int32> _lastAnnounced; // stat percent last told to the player
 };
 
 #define sDynamicScaling DynamicScalingMgr::instance()
