@@ -375,16 +375,29 @@ public:
     DynamicScalingMapScript() : AllMapScript("DynamicScalingMapScript",
         { ALLMAPHOOK_ON_PLAYER_ENTER_ALL, ALLMAPHOOK_ON_PLAYER_LEAVE_ALL }) { }
 
-    void OnPlayerEnterAll(Map* map, Player* /*player*/) override
+    void OnPlayerEnterAll(Map* map, Player* player) override
     {
-        if (map && map->IsDungeon())
-            sDynamicScaling->RefreshMapInfo(map);
+        Refresh(map, player);
     }
 
-    void OnPlayerLeaveAll(Map* map, Player* /*player*/) override
+    void OnPlayerLeaveAll(Map* map, Player* player) override
     {
-        if (map && map->IsDungeon())
-            sDynamicScaling->RefreshMapInfo(map);
+        Refresh(map, player);
+    }
+
+private:
+    // The group size changed for everyone else inside, so their Simple mode buff changes too
+    void Refresh(Map* map, Player* changed)
+    {
+        if (!map || !map->IsDungeon())
+            return;
+
+        sDynamicScaling->RefreshMapInfo(map);
+
+        for (auto const& ref : map->GetPlayers())
+            if (Player* player = ref.GetSource())
+                if (player != changed && player->IsInWorld())
+                    sDynamicScaling->UpdatePlayerBuff(player);
     }
 };
 

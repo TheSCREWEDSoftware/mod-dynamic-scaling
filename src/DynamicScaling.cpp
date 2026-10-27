@@ -659,7 +659,7 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
         groupSize = 0;
         for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
             if (Player* member = itr->GetSource())
-                if (member->GetMap() == map && !member->IsGameMaster() && IsScalingFor(member))
+                if (member->GetMap() == map && !member->IsGameMaster())
                     ++groupSize;
 
         groupSize = std::max<uint32>(1, groupSize);
