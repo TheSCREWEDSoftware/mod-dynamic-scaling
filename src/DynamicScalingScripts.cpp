@@ -349,7 +349,8 @@ public:
                 damage = uint32(float(damage) * info->damageMult);
     }
 
-    void ModifySpellDamageTaken(Unit* /*target*/, Unit* attacker, int32& damage, SpellInfo const* /*spellInfo*/) override
+    void ModifySpellDamageTaken(Unit* /*target*/, Unit* attacker, int32& damage,
+        SpellInfo const* /*spellInfo*/) override
     {
         if (damage <= 0)
             return;
@@ -414,8 +415,9 @@ public:
             ChatHandler handler(player->GetSession());
             handler.SendSysMessage("This server is running the |cff4CFF00Dynamic Scaling|r module.");
             if (config.playerToggle)
-                handler.PSendSysMessage("Scaling is {} for you. Type |cffFFFF00.scaling on|r or |cffFFFF00.scaling off|r "
-                    "to change it.", sDynamicScaling->IsScalingFor(player) ? "|cff4CFF00on|r" : "|cffFF0000off|r");
+                handler.PSendSysMessage("Scaling is {} for you. Type |cffFFFF00.scaling on|r or "
+                    "|cffFFFF00.scaling off|r to change it.",
+                    sDynamicScaling->IsScalingFor(player) ? "|cff4CFF00on|r" : "|cffFF0000off|r");
         }
 
         sDynamicScaling->UpdatePlayerBuff(player);

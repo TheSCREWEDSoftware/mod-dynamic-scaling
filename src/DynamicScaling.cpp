@@ -90,12 +90,14 @@ void DynamicScalingMgr::LoadConfig()
     c.instanceIncludeRaids = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.IncludeRaids", true);
     c.instanceIncludeHeroics = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.IncludeHeroics", true);
     c.instanceLevelScaling = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.LevelScaling.Enable", true);
-    c.instanceReference = ToReference(sConfigMgr->GetOption<uint32>("DynamicScaling.Instance.LevelScaling.Reference", 0),
-        LevelReference::Highest);
+    c.instanceReference = ToReference(
+        sConfigMgr->GetOption<uint32>("DynamicScaling.Instance.LevelScaling.Reference", 0), LevelReference::Highest);
     if (c.instanceReference == LevelReference::Nearest)
         c.instanceReference = LevelReference::Highest;
-    c.instanceDefaultLevelMin = sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.LevelScaling.DefaultLevelMin", 1);
-    c.instanceDefaultLevelMax = sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.LevelScaling.DefaultLevelMax", 80);
+    c.instanceDefaultLevelMin =
+        sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.LevelScaling.DefaultLevelMin", 1);
+    c.instanceDefaultLevelMax =
+        sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.LevelScaling.DefaultLevelMax", 80);
 
     c.simpleSpellId = sConfigMgr->GetOption<uint32>("DynamicScaling.Instance.Simple.SpellId", 150100);
     c.simpleStatsMult = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Simple.StatsMult", 100.0f);
@@ -148,8 +150,10 @@ void DynamicScalingMgr::LoadTables()
     _instanceRows.clear();
     _zoneRows.clear();
 
-    //                                                   0         1           2       3                  4
-    if (QueryResult result = WorldDatabase.Query("SELECT `map_id`, `difficulty`, `mode`, `entry_level_min`, `level_scaling`, "
+    //                                                   0         1             2       3
+    if (QueryResult result = WorldDatabase.Query("SELECT `map_id`, `difficulty`, `mode`, `entry_level_min`, "
+        //   4
+        "`level_scaling`, "
         //   5            6            7             8                   9              10
         "`level_min`, `level_max`, `base_level`, `expected_players`, `simple_mult`, `health_mult`, "
         //   11             12           13           14         15           16           17           18
@@ -304,7 +308,8 @@ bool DynamicScalingMgr::GetInstanceSettings(Map const* map, InstanceSettings& ou
     InstanceScalingRow const* row = FindInstanceRow(map->GetId(), difficulty);
 
     out.mode = row && row->mode != ScalingMode::Default ? row->mode : _config.instanceDefaultMode;
-    out.levelScaling = row && row->levelScaling != DS_USE_CONFIG ? row->levelScaling != 0 : _config.instanceLevelScaling;
+    out.levelScaling = row && row->levelScaling != DS_USE_CONFIG ? row->levelScaling != 0 :
+        _config.instanceLevelScaling;
     out.levelMin = row ? row->levelMin : _config.instanceDefaultLevelMin;
     out.levelMax = row ? row->levelMax : _config.instanceDefaultLevelMax;
     out.expectedPlayers = row ? row->expectedPlayers : 0;
@@ -453,8 +458,8 @@ void DynamicScalingMgr::RefreshMapInfo(Map* map) const
 
     uint8 average = count ? uint8((sum + count / 2) / count) : 0;
 
-    if (info->playerCount != total || info->scalingPlayers != count || info->levelHighest != highest || info->levelLowest != lowest ||
-        info->levelAverage != average)
+    if (info->playerCount != total || info->scalingPlayers != count || info->levelHighest != highest ||
+        info->levelLowest != lowest || info->levelAverage != average)
     {
         info->playerCount = total;
         info->scalingPlayers = count;
@@ -705,8 +710,8 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
     }
 
     if (_config.announce)
-        ChatHandler(player->GetSession()).PSendSysMessage("|cff4CFF00[Dynamic Scaling]|r {}: group {}/{}, stats +{:.0f}%, "
-            "spell power +{}.", map->GetMapName(), groupSize, expected, statPct, state.spellPowerBonus);
+        ChatHandler(player->GetSession()).PSendSysMessage("|cff4CFF00[Dynamic Scaling]|r {}: group {}/{}, "
+            "stats +{:.0f}%, spell power +{}.", map->GetMapName(), groupSize, expected, statPct, state.spellPowerBonus);
 }
 
 void DynamicScalingMgr::RemovePlayerBuff(Player* player)
