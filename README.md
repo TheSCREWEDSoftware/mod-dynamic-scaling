@@ -88,6 +88,17 @@ Config changes need `.reload config`.
 - A creature's level is shared by everyone who sees it (3.3.5 clients get one level per creature), so the
   reference player is the nearest one by default, or the group average.
 
+## Uninstall
+
+`data/sql/uninstall/` has a `world.sql` and a `characters.sql` that take the module back out: they drop its tables,
+remove its custom spells (and any saved auras of them) and its rows in `updates`, so a later reinstall starts clean.
+Creature levels and stats, instance entry levels and respawn points are only changed in memory, so they are the core's
+again once the module is gone.
+
+1. Take the module out of the build (move it out of `modules/`, or add it to `-DDISABLED_AC_MODULES`) and rebuild.
+   With the module still built, the DB updater installs everything again on the next start.
+2. Run `world.sql` on the world database and `characters.sql` on the characters database.
+
 ## Known limits
 
 - The Dungeon Finder (LFG) has its own level checks from `LFGDungeons.dbc`; `entry_level_min` only changes
