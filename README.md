@@ -89,6 +89,7 @@ The SQL in `data/sql` is applied by the core's DB updater (or `dbimport`) like a
 | `.dscale info` | GM | Settings for your map / zone, and for the selected creature |
 | `.dscale reload` | admin | Reload both tables; creatures rescale once out of combat |
 | `.dscale rescale` | GM | Rescale the selected creature on its next update |
+| `.dscale lootswap <reference> [level]` | GM | Which level range loot table a scaled creature rolls instead |
 
 Config changes need `.reload config`.
 

@@ -424,13 +424,45 @@ DynamicScaling.World.LootItems.MaxLevelsAbove = 5
 #
 #    DynamicScaling.World.LootSwap.Enable
 #        Description: A creature scaled outside the reward margins rolls the level range loot tables of its scaled
-#                     level instead of its own: a "WotLK Greens 69-71 Level Range" reference becomes "Vanilla Greens
-#                     8-12" at level 10, "TBC Greens 64-66" at 65. Same kind (greys, whites, greens, blues,
-#                     purples, potions, patterns...), the level's own expansion first. The tables are found from
-#                     the comments of the loot rows that use them ("... Level Range").
+#                     level instead of its own. They are the reference tables 1000000-1299999 (1, expansion, kind,
+#                     two digits min level, two digits max level) whose rows say "<Expansion> <Kind> <min>-<max>
+#                     Level Range". The kind is read from those comments; only the same kind is swapped in
+#                     (greys, whites, greens, blues, purples, scrolls, potions, patterns, bags...). Creature
+#                     specific drops and quest items are never swapped. To see the tables:
+#
+#                       SELECT DISTINCT `Reference`, `Comment` FROM `creature_loot_template`
+#                         WHERE `Reference` BETWEEN 1000000 AND 1299999 AND `Comment` LIKE '%Level Range%'
+#                       UNION SELECT DISTINCT `Reference`, `Comment` FROM `reference_loot_template`
+#                         WHERE `Reference` BETWEEN 1000000 AND 1299999 AND `Comment` LIKE '%Level Range%'
+#                       ORDER BY 1;
+#
+#                     In game, .dscale lootswap <reference> [level] shows what a table becomes at each level.
+#                     With the default settings:
+#                       WotLK Greens 69-71  -> Vanilla Greens 8-12 at level 10, Vanilla Greens 33-37 at 35,
+#                                              TBC Greens 64-66 at 65, WotLK Greens 79-81 at 80
+#                       Vanilla Blues 56-59 -> TBC Blues 63-66 at 65
 #        Default:     1 - enabled
 
 DynamicScaling.World.LootSwap.Enable = 1
+
+#
+#    DynamicScaling.World.LootSwap.Expansion
+#        Description: Which expansion's table is picked when several cover the level. A table covering the level
+#                     always wins over one that doesn't; among them, the one centered nearest the level.
+#        Default:     0 - the level's own expansion first (see TBCFromLevel / WrathFromLevel below)
+#                     1 - the original table's expansion first (a Wrath table stays Wrath where Wrath has one)
+#                     2 - only the original table's expansion (the closest range when none covers the level)
+
+DynamicScaling.World.LootSwap.Expansion = 0
+
+#
+#    DynamicScaling.World.LootSwap.TBCFromLevel
+#    DynamicScaling.World.LootSwap.WrathFromLevel
+#        Description: With LootSwap.Expansion 0: from these levels the TBC / Wrath tables come first.
+#        Default:     61 / 71
+
+DynamicScaling.World.LootSwap.TBCFromLevel = 61
+DynamicScaling.World.LootSwap.WrathFromLevel = 71
 
 #
 #    DynamicScaling.World.QuestMinLevel.Enable

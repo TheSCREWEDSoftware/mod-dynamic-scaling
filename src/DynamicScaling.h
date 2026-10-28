@@ -240,6 +240,9 @@ struct DSConfig
     bool questMoneyScale = true;           // ...and money scaled the same way
     bool lootMoneyScale = true;            // a creature's gold follows its scaled level
     bool lootSwap = true;                  // level range loot tables follow the creature's scaled level
+    uint8 lootSwapExpansion = 0;           // 0 the level's expansion first, 1 the table's own first, 2 only its own
+    uint8 lootSwapTbcFrom = 61;            // levels that count as TBC / Wrath for LootSwap.Expansion 0
+    uint8 lootSwapWrathFrom = 71;
     uint8 rewardMarginDown = 3;            // scaled this close to its own level (or a quest this close above
     uint8 rewardMarginUp = 3;              // you), rewards stay normal
     int32 lootItemsLevelsAbove = 5;        // scaled down creatures drop no items needing this many levels more
@@ -263,6 +266,7 @@ public:
     // a level, or 0 when the given one already covers it
     uint32 FindLevelLootSwap(uint32 referenceId, uint8 level) const;
     std::size_t LevelLootCount() const { return _levelLoot.size(); }
+    std::string LevelLootName(uint32 referenceId) const;
     // Scaled further from its own level than the reward margins: its loot and gold follow the scaled level
     bool HasScaledLoot(DSCreatureInfo const* info) const;
     void LoadCollective();

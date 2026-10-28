@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 using namespace Acore::ChatCommands;
 
@@ -48,7 +49,8 @@ public:
         {
             { "info",    HandleInfoCommand,    SEC_GAMEMASTER,    Console::No },
             { "reload",  HandleReloadCommand,  SEC_ADMINISTRATOR, Console::Yes },
-            { "rescale", HandleRescaleCommand, SEC_GAMEMASTER,    Console::No }
+            { "rescale", HandleRescaleCommand, SEC_GAMEMASTER,    Console::No },
+            { "lootswap", HandleLootSwapCommand, SEC_GAMEMASTER,  Console::Yes }
         };
 
         static ChatCommandTable commandTable =
@@ -176,6 +178,27 @@ public:
         sDynamicScaling->SetPlayerChoice(player, mode);
         handler->PSendSysMessage("Your scaling is now {}. Nearby creatures update within a few seconds once out of "
             "combat.", DynamicScalingMgr::ModeName(mode));
+        return true;
+    }
+
+    // .dscale lootswap <reference id> [level]: which level range table a creature at that level rolls instead
+    static bool HandleLootSwapCommand(ChatHandler* handler, uint32 referenceId, Optional<uint8> level)
+    {
+        handler->PSendSysMessage("{}: {} ({} level range tables known)", referenceId,
+            sDynamicScaling->LevelLootName(referenceId), sDynamicScaling->LevelLootCount());
+
+        std::vector<uint8> levels;
+        if (level)
+            levels.push_back(*level);
+        else
+            levels = { 1, 10, 20, 30, 40, 50, 60, 65, 70, 75, 80 };
+
+        for (uint8 lvl : levels)
+        {
+            uint32 swap = sDynamicScaling->FindLevelLootSwap(referenceId, lvl);
+            handler->PSendSysMessage("  at level {}: {}", lvl,
+                swap ? Acore::StringFormat("{} ({})", swap, sDynamicScaling->LevelLootName(swap)) : "keeps it");
+        }
         return true;
     }
 

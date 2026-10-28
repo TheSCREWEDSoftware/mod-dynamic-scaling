@@ -163,6 +163,10 @@ void DynamicScalingMgr::LoadConfig()
     c.lootMoneyScale = sConfigMgr->GetOption<bool>("DynamicScaling.World.LootMoney.Scale", true);
     c.lootItemsLevelsAbove = sConfigMgr->GetOption<int32>("DynamicScaling.World.LootItems.MaxLevelsAbove", 5);
     c.lootSwap = sConfigMgr->GetOption<bool>("DynamicScaling.World.LootSwap.Enable", true);
+    c.lootSwapExpansion =
+        std::min<uint8>(2, sConfigMgr->GetOption<uint8>("DynamicScaling.World.LootSwap.Expansion", 0));
+    c.lootSwapTbcFrom = sConfigMgr->GetOption<uint8>("DynamicScaling.World.LootSwap.TBCFromLevel", 61);
+    c.lootSwapWrathFrom = sConfigMgr->GetOption<uint8>("DynamicScaling.World.LootSwap.WrathFromLevel", 71);
     c.rewardMarginDown = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Rewards.MarginDown", 3);
     c.rewardMarginUp = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Rewards.MarginUp", 3);
 
@@ -434,13 +438,20 @@ uint32 DynamicScalingMgr::FindLevelLootSwap(uint32 referenceId, uint8 level) con
     if (itr == _levelLoot.end() || (level >= itr->second.levelMin && level <= itr->second.levelMax))
         return 0;
 
-    // Same kind: a table covering the level, of the level's own expansion if there is one, centered nearest to it
-    uint8 wantedExpansion = level <= 60 ? 0 : level <= 70 ? 1 : 2;
+    // Same kind: a table covering the level (else the closest), of the preferred expansion if there is one,
+    // centered nearest to the level
+    uint8 wantedExpansion = itr->second.expansion;
+    if (_config.lootSwapExpansion == 0)
+        wantedExpansion = level >= _config.lootSwapWrathFrom ? 2 : level >= _config.lootSwapTbcFrom ? 1 : 0;
+
     uint32 best = 0;
     int32 bestScore = 0;
     for (uint32 id : _levelLootByKind.at(itr->second.kind))
     {
         LevelLootTable const& table = _levelLoot.at(id);
+        if (_config.lootSwapExpansion == 2 && table.expansion != itr->second.expansion)
+            continue;
+
         int32 outside = level < table.levelMin ? table.levelMin - level :
             level > table.levelMax ? level - table.levelMax : 0;
         int32 center = std::abs(int32(table.levelMin + table.levelMax) - 2 * int32(level));
@@ -462,6 +473,17 @@ bool DynamicScalingMgr::HasScaledLoot(DSCreatureInfo const* info) const
 
     int32 diff = int32(info->scaledLevel) - int32(info->originalLevel);
     return diff < -int32(_config.rewardMarginDown) || diff > int32(_config.rewardMarginUp);
+}
+
+std::string DynamicScalingMgr::LevelLootName(uint32 referenceId) const
+{
+    static char const* const EXPANSIONS[] = { "Vanilla", "TBC", "WotLK" };
+    auto itr = _levelLoot.find(referenceId);
+    if (itr == _levelLoot.end())
+        return "not a level range table";
+
+    return Acore::StringFormat("{} {} {}-{}", EXPANSIONS[std::min<uint8>(itr->second.expansion, 2)],
+        itr->second.kind, itr->second.levelMin, itr->second.levelMax);
 }
 
 float DynamicScalingMgr::MoneyForLevel(uint8 level)
