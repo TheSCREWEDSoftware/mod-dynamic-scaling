@@ -145,6 +145,8 @@ void DynamicScalingMgr::LoadConfig()
     c.worldScaleElites = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleElites", true);
     c.worldScaleRares = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleRares", true);
     c.worldScaleWorldBosses = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleWorldBosses", false);
+    c.worldScaleGuards = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleGuards", false);
+    c.worldScaleFactionNpcs = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleFactionNpcs", false);
     c.offQuestCreditLevels = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Off.NoQuestCreditLevels", 5);
 
     c.xpAlwaysAward = sConfigMgr->GetOption<bool>("DynamicScaling.World.XP.AlwaysAward", true);
@@ -235,8 +237,18 @@ void DynamicScalingMgr::LoadTables()
         } while (result->NextRow());
     }
 
-    LOG_INFO("module", "mod-dynamic-scaling: loaded {} map rows and {} zone/area rows.", _instanceRows.size(),
-        _zoneRows.size());
+    _creatureRules.clear();
+    if (QueryResult result = WorldDatabase.Query("SELECT `entry`, `scale` FROM `dynamic_scaling_creature`"))
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            _creatureRules[fields[0].Get<uint32>()] = fields[1].Get<uint8>() != 0;
+        } while (result->NextRow());
+    }
+
+    LOG_INFO("module", "mod-dynamic-scaling: loaded {} map rows, {} zone/area rows and {} creature rules.",
+        _instanceRows.size(), _zoneRows.size(), _creatureRules.size());
 
     if (!sSpellMgr->GetSpellInfo(_config.simpleSpellId))
         LOG_ERROR("module", "mod-dynamic-scaling: spell {} (DynamicScaling.Instance.Simple.SpellId) is missing from "
@@ -567,8 +579,21 @@ bool DynamicScalingMgr::IsCreatureEligible(Creature* creature, bool world) const
     if (!world)
         return true;
 
+    // `dynamic_scaling_creature` beats every check below
+    auto rule = _creatureRules.find(creature->GetEntry());
+    if (rule != _creatureRules.end())
+        return rule->second;
+
     if (creature->IsCivilian())
         return false;
+
+    if (!_config.worldScaleGuards && creature->IsGuard())
+        return false;
+
+    if (!_config.worldScaleFactionNpcs)
+        if (FactionTemplateEntry const* faction = creature->GetFactionTemplateEntry())
+            if (faction->ourMask & (FACTION_MASK_ALLIANCE | FACTION_MASK_HORDE))
+                return false;
 
     if (!_config.worldScaleNpcFlags && creature->GetNpcFlags() != UNIT_NPC_FLAG_NONE)
         return false;

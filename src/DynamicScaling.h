@@ -199,6 +199,8 @@ struct DSConfig
     bool worldScaleElites = true;
     bool worldScaleRares = true;
     bool worldScaleWorldBosses = false;
+    bool worldScaleGuards = false;
+    bool worldScaleFactionNpcs = false;    // creatures of the Alliance or Horde (PvP NPCs, faction leaders...)
 
     // Players with scaling off: kills this many levels below them give no quest progress or quest items (0 = off)
     uint8 offQuestCreditLevels = 5;
@@ -285,6 +287,7 @@ private:
 
     std::unordered_map<uint64, InstanceScalingRow> _instanceRows; // key: mapId << 8 | difficulty
     std::unordered_map<uint32, ZoneScalingRow> _zoneRows;
+    std::unordered_map<uint32, bool> _creatureRules;              // creature entry -> always / never scales
     std::unordered_map<uint64, uint8> _originalEntryLevels;       // access requirement levelMin backups
 
     struct PlayerBuffState

@@ -323,6 +323,16 @@ DynamicScaling.World.ScaleRares = 1
 DynamicScaling.World.ScaleWorldBosses = 0
 
 #
+#    DynamicScaling.World.ScaleGuards
+#    DynamicScaling.World.ScaleFactionNpcs
+#        Description: Also scale guards, and creatures of the Alliance or Horde (PvP NPCs, faction leaders, camp
+#                     defenders). `dynamic_scaling_creature` (scale 0 never / 1 always) beats these per entry.
+#        Default:     0 / 0
+
+DynamicScaling.World.ScaleGuards = 0
+DynamicScaling.World.ScaleFactionNpcs = 0
+
+#
 #    DynamicScaling.World.Off.NoQuestCreditLevels
 #        Description: Players with scaling off: creatures this many levels or more below them give no quest
 #                     progress and drop no quest items (open world, scaled places only), like Ascension.
