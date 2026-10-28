@@ -694,7 +694,8 @@ void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level) const
     // the SelectLevel hooks pick up pendingLevel and apply the multipliers.
     info->pendingLevel = level;
 
-    bool silent = _config.worldSilentLevelChange && level != creature->GetLevel();
+    // Someone with it selected would lose the target when it is sent again: change it the normal way then
+    bool silent = _config.worldSilentLevelChange && level != creature->GetLevel() && !IsTargetedByViewer(creature);
     if (!silent)
     {
         creature->SelectLevel();
@@ -704,7 +705,7 @@ void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level) const
     }
 
     // The client plays a level up effect when it sees a unit's level go up. Change the level without sending the
-    // field, then send the creature again to everyone who sees it: one packet that removes and re-creates it.
+    // field, then destroy the creature on each client and create it again with the new level.
     creature->SetLevel(level, false);
     creature->SelectLevel(false);
     ApplyArmor(creature, info);
@@ -719,8 +720,11 @@ void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level) const
 
     for (Player* player : viewers)
     {
+        // SMSG_DESTROY_OBJECT removes it at once; an out of range block in the same packet as the create left the
+        // client reusing the old object, which still showed the level going up
+        creature->DestroyForPlayer(player);
+
         UpdateData data;
-        creature->BuildOutOfRangeUpdateBlock(&data);
         creature->BuildCreateUpdateBlockForPlayer(&data, player);
         WorldPacket packet;
         data.BuildPacket(packet);

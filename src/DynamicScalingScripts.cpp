@@ -233,7 +233,7 @@ private:
             settings, ScalingMode::Advanced) ||
             !sDynamicScaling->IsCreatureEligible(creature, true))
         {
-            if (info->scaledLevel && !sDynamicScaling->IsTargetedByViewer(creature))
+            if (info->scaledLevel)
             {
                 sDynamicScaling->ResetCreature(creature);
                 info->worldMode = ScalingMode::Off;
@@ -242,10 +242,6 @@ private:
         }
 
         if (info->cooldown > 0 && !settingsChanged)
-            return;
-
-        // A player looking at it would lose the target when it is sent again; wait until nobody has it selected
-        if (config.worldSilentLevelChange && sDynamicScaling->IsTargetedByViewer(creature))
             return;
 
         if (!info->originalLevel)

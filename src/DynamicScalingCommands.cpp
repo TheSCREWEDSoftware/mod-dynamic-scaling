@@ -104,6 +104,12 @@ public:
                     "mana x{:.2f}, armor x{:.2f}", creature->GetName(), creature->GetLevel(), info->originalLevel,
                     info->scaledLevel ? DynamicScalingMgr::ModeName(info->worldMode) : "no", info->healthMult,
                     info->damageMult, info->manaMult, info->armorMult);
+
+            if (!creature->GetMap()->Instanceable())
+                handler->PSendSysMessage("  distance {:.0f} yd, scaling range {:.0f} yd, {}, {}",
+                    creature->GetDistance(player), sDynamicScaling->GetWorldRange(creature->GetMap()),
+                    sDynamicScaling->IsCreatureEligible(creature, true) ? "can scale" : "never scales (NPC, "
+                    "civilian, unattackable or world boss)", creature->IsInCombat() ? "in combat" : "out of combat");
         }
 
         return true;

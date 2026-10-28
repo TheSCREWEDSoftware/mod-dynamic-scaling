@@ -273,9 +273,9 @@ DynamicScaling.World.Range = 0
 
 #
 #    DynamicScaling.World.SilentLevelChange
-#        Description: Change a creature's level without the client's level up effect: the creature is sent again
-#                     (removed and re-created in one packet) to everyone who sees it. A creature someone has
-#                     selected waits until nobody has it selected, so nobody loses their target.
+#        Description: Change a creature's level without the client's level up effect: the creature is removed
+#                     and created again for everyone who sees it. A creature someone has selected changes the
+#                     normal way instead (with the effect when it goes up), so nobody loses their target.
 #        Default:     1 - enabled
 #                     0 - disabled (normal level change, with the level up effect when it goes up)
 
