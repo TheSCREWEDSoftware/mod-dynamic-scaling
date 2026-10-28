@@ -22,6 +22,7 @@
 #include "ObjectGuid.h"
 #include "Position.h"
 
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
@@ -362,6 +363,8 @@ private:
         uint32 spellPowerBonus = 0;
         float xpModifier = 1.0f;
     };
+    // Per player state below is used from every map thread (MapUpdate.Threads > 1)
+    mutable std::shared_mutex _playerLock;
     std::unordered_map<ObjectGuid::LowType, PlayerBuffState> _playerBuffs;
 
     struct EntryPosition

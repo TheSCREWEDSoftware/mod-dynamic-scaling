@@ -1101,6 +1101,7 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
     InstanceSettings settings;
     if (!IsScalingFor(player) || !GetInstanceSettings(map, settings) || settings.mode != ScalingMode::Simple)
     {
+        std::unique_lock lock(_playerLock);
         _lastAnnounced.erase(player->GetGUID().GetCounter());
         return;
     }
@@ -1125,6 +1126,7 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
 
     if (groupSize >= expected)
     {
+        std::unique_lock lock(_playerLock);
         _playerBuffs[player->GetGUID().GetCounter()] = state;
         return;
     }
@@ -1152,7 +1154,10 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
             player->ApplySpellPowerBonus(int32(state.spellPowerBonus), true);
     }
 
-    _playerBuffs[player->GetGUID().GetCounter()] = state;
+    {
+        std::unique_lock lock(_playerLock);
+        _playerBuffs[player->GetGUID().GetCounter()] = state;
+    }
 
     if (player->IsAlive() && !player->IsInCombat())
     {
@@ -1161,23 +1166,34 @@ void DynamicScalingMgr::UpdatePlayerBuff(Player* player)
             player->SetPower(POWER_MANA, player->GetMaxPower(POWER_MANA));
     }
 
-    int32& lastAnnounced = _lastAnnounced[player->GetGUID().GetCounter()];
-    if (_config.announce && lastAnnounced != int32(statPct))
+    int32 previous = 0;
+    {
+        std::unique_lock lock(_playerLock);
+        int32& lastAnnounced = _lastAnnounced[player->GetGUID().GetCounter()];
+        previous = lastAnnounced;
+        lastAnnounced = int32(statPct);
+    }
+
+    if (_config.announce && previous != int32(statPct))
         ChatHandler(player->GetSession()).PSendSysMessage("|cff4CFF00[Dynamic Scaling]|r {}: group {}/{}, "
             "stats +{:.0f}%, spell power +{}.", map->GetMapName(), groupSize, expected, statPct, state.spellPowerBonus);
-    lastAnnounced = int32(statPct);
 }
 
 void DynamicScalingMgr::RemovePlayerBuff(Player* player)
 {
-    auto itr = _playerBuffs.find(player->GetGUID().GetCounter());
-    if (itr != _playerBuffs.end())
+    uint32 spellPowerBonus = 0;
     {
-        if (itr->second.spellPowerBonus)
-            player->ApplySpellPowerBonus(int32(itr->second.spellPowerBonus), false);
-
-        _playerBuffs.erase(itr);
+        std::unique_lock lock(_playerLock);
+        auto itr = _playerBuffs.find(player->GetGUID().GetCounter());
+        if (itr != _playerBuffs.end())
+        {
+            spellPowerBonus = itr->second.spellPowerBonus;
+            _playerBuffs.erase(itr);
+        }
     }
+
+    if (spellPowerBonus)
+        player->ApplySpellPowerBonus(int32(spellPowerBonus), false);
 
     if (_config.simpleSpellId && player->HasAura(_config.simpleSpellId))
         player->RemoveAurasDueToSpell(_config.simpleSpellId);
@@ -1185,6 +1201,7 @@ void DynamicScalingMgr::RemovePlayerBuff(Player* player)
 
 float DynamicScalingMgr::GetPlayerXPModifier(Player* player) const
 {
+    std::shared_lock lock(_playerLock);
     auto itr = _playerBuffs.find(player->GetGUID().GetCounter());
     return itr != _playerBuffs.end() ? itr->second.xpModifier : 1.0f;
 }
@@ -1195,6 +1212,7 @@ void DynamicScalingMgr::RecordEntryPosition(Player* player)
     if (!map || !map->IsDungeon())
         return;
 
+    std::unique_lock lock(_playerLock);
     EntryPosition& entry = _entryPositions[player->GetGUID().GetCounter()];
     entry.mapId = map->GetId();
     entry.pos.Relocate(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(),
@@ -1203,6 +1221,7 @@ void DynamicScalingMgr::RecordEntryPosition(Player* player)
 
 void DynamicScalingMgr::ForgetPlayer(Player* player)
 {
+    std::unique_lock lock(_playerLock);
     _entryPositions.erase(player->GetGUID().GetCounter());
     _playerBuffs.erase(player->GetGUID().GetCounter());
     _playerChoices.erase(player->GetGUID().GetCounter());
@@ -1214,6 +1233,7 @@ ScalingMode DynamicScalingMgr::GetPlayerMode(Player const* player) const
     if (!player || !_config.playerToggle)
         return _config.playerDefault == ScalingMode::Off ? ScalingMode::Simple : _config.playerDefault;
 
+    std::shared_lock lock(_playerLock);
     auto itr = _playerChoices.find(player->GetGUID().GetCounter());
     return itr != _playerChoices.end() ? itr->second : _config.playerDefault;
 }
@@ -1254,17 +1274,22 @@ char const* DynamicScalingMgr::ModeName(ScalingMode mode)
 void DynamicScalingMgr::LoadPlayerChoice(Player* player)
 {
     ObjectGuid::LowType guid = player->GetGUID().GetCounter();
-    _playerChoices.erase(guid);
+    QueryResult result = CharacterDatabase.Query("SELECT `enabled` FROM `dynamic_scaling_player` WHERE `guid` = {}",
+        guid);
 
-    if (QueryResult result = CharacterDatabase.Query("SELECT `enabled` FROM `dynamic_scaling_player` WHERE `guid` = {}",
-        guid))
+    std::unique_lock lock(_playerLock);
+    _playerChoices.erase(guid);
+    if (result)
         _playerChoices[guid] = ToMode((*result)[0].Get<uint8>(), _config.playerDefault);
 }
 
 void DynamicScalingMgr::SetPlayerChoice(Player* player, ScalingMode mode)
 {
     ObjectGuid::LowType guid = player->GetGUID().GetCounter();
-    _playerChoices[guid] = mode;
+    {
+        std::unique_lock lock(_playerLock);
+        _playerChoices[guid] = mode;
+    }
     CharacterDatabase.Execute("REPLACE INTO `dynamic_scaling_player` (`guid`, `enabled`) VALUES ({}, {})", guid,
         uint32(mode));
 
@@ -1293,6 +1318,7 @@ bool DynamicScalingMgr::ResolveRespawnPosition(Player* player, InstanceSettings 
     }
 
     // 3. Where this player arrived in this instance
+    std::shared_lock lock(_playerLock);
     auto itr = _entryPositions.find(player->GetGUID().GetCounter());
     if (itr != _entryPositions.end() && itr->second.mapId == player->GetMapId())
     {

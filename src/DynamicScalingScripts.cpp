@@ -23,6 +23,7 @@
 #include "World.h"
 
 #include <algorithm>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -54,13 +55,21 @@ namespace
         float factor = 1.0f;
         int64 time = 0;
     };
-    std::unordered_map<ObjectGuid::LowType, QuestMoneyScale> PendingQuestMoney;
+    thread_local std::unordered_map<ObjectGuid::LowType, QuestMoneyScale> PendingQuestMoney;
 
     // Set right before the core checks whether a quest item in a loot may be shown to a player
     thread_local bool CheckingQuestLootItem = false;
 
     // Players waiting for a dungeon respawn after releasing their spirit
     std::unordered_set<ObjectGuid::LowType> PendingRespawns;
+    std::mutex PendingRespawnsLock;
+
+    // Takes the player off the list; true if they were on it
+    bool TakePendingRespawn(ObjectGuid::LowType guid)
+    {
+        std::lock_guard lock(PendingRespawnsLock);
+        return PendingRespawns.erase(guid) > 0;
+    }
 }
 
 class DynamicScalingWorldScript : public WorldScript
@@ -640,7 +649,7 @@ public:
 
     void OnPlayerLogout(Player* player) override
     {
-        PendingRespawns.erase(player->GetGUID().GetCounter());
+        TakePendingRespawn(player->GetGUID().GetCounter());
         sDynamicScaling->ForgetPlayer(player);
     }
 
@@ -664,18 +673,18 @@ public:
     {
         InstanceSettings settings;
         if (sDynamicScaling->GetInstanceSettings(player->GetMap(), settings) && settings.respawn)
+        {
+            std::lock_guard lock(PendingRespawnsLock);
             PendingRespawns.insert(player->GetGUID().GetCounter());
+        }
     }
 
     bool OnPlayerBeforeTeleport(Player* player, uint32 /*mapId*/, float /*x*/, float /*y*/, float /*z*/,
         float /*orientation*/, uint32 /*options*/, Unit* /*target*/) override
     {
-        auto itr = PendingRespawns.find(player->GetGUID().GetCounter());
-        if (itr == PendingRespawns.end())
+        // Taken off first: the TeleportTo() below comes back through this hook
+        if (!TakePendingRespawn(player->GetGUID().GetCounter()))
             return true;
-
-        // Erase first: the TeleportTo() below comes back through this hook
-        PendingRespawns.erase(itr);
 
         if (player->IsAlive())
             return true;
