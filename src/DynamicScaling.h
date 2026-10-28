@@ -121,6 +121,7 @@ struct DSCreatureInfo : public DataMap::Base
     uint8 originalLevel = 0;  // level the creature had before any scaling
     uint8 pendingLevel = 0;   // level to force on the next SelectLevel()
     uint8 scaledLevel = 0;    // 0 = not scaled
+    ScalingMode worldMode = ScalingMode::Off; // open world: the mode of the player it was scaled for
     float damageMult = 1.0f;
     float healthMult = 1.0f;
     float manaMult = 1.0f;
@@ -152,9 +153,9 @@ struct DSConfig
     bool collectiveSetting = true;
     bool collective = false;
 
-    // Players may turn scaling off for themselves (.scaling on/off)
+    // Players pick their own open world scaling (.scaling simple / advanced / off)
     bool playerToggle = true;
-    bool playerDefault = true;
+    ScalingMode playerDefault = ScalingMode::Simple;
 
     // Instances
     bool instanceEnable = true;
@@ -183,18 +184,23 @@ struct DSConfig
 
     // World
     bool worldEnable = true;
-    ScalingMode worldDefaultMode = ScalingMode::Off;
-    uint8 worldTrailLevels = 2;
+    bool worldDefaultScaled = false;       // places with no zone, area or map row
+    uint8 worldSimpleTrail = 3;            // Simple: creatures sit this many levels below you, anywhere
+    uint8 worldTrailLevels = 2;            // Advanced: default trail inside the zone's level window
     uint8 worldLevelSpread = 1;
     LevelReference worldReference = LevelReference::Nearest;
     bool worldGroupAverage = true;
-    float worldRange = 60.0f;
+    float worldRange = 0.0f;               // 0 = the map's visibility distance
+    bool worldSilentLevelChange = true;    // re-send the creature instead of a visible level change
     uint32 worldUpdateInterval = 2000;
     uint32 worldRescaleCooldown = 10000;
     bool worldScaleNpcFlags = false;
     bool worldScaleElites = true;
     bool worldScaleRares = true;
     bool worldScaleWorldBosses = false;
+
+    // Players with scaling off: kills this many levels below them give no quest progress or quest items (0 = off)
+    uint8 offQuestCreditLevels = 5;
 
     bool xpAlwaysAward = true;
     uint32 xpMinPct = 25;
@@ -223,8 +229,11 @@ public:
 
     // Settings lookups
     bool GetInstanceSettings(Map const* map, InstanceSettings& out) const;
-    // Open world: area row, then zone row, then map row, then config
-    bool GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 areaId, ZoneSettings& out) const;
+    // Open world: area row, then zone row, then map row, then config. playerMode (Simple or Advanced) picks how
+    // the row is used: Simple trails behind the player anywhere, Advanced keeps the row's level window and fields.
+    bool GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 areaId, ZoneSettings& out,
+        ScalingMode playerMode) const;
+    float GetWorldRange(Map const* map) const;
     InstanceScalingRow const* FindInstanceRow(uint32 mapId, uint8 difficulty) const;
     ZoneScalingRow const* FindZoneRow(uint32 id) const;
     std::size_t InstanceRowCount() const { return _instanceRows.size(); }
@@ -245,11 +254,17 @@ public:
     void RescaleCreature(Creature* creature, uint8 level) const;
     void ApplyArmor(Creature* creature, DSCreatureInfo const* info) const;
     void ResetCreature(Creature* creature) const;
+    bool IsTargetedByViewer(Creature* creature) const;
 
-    // Player opt in / out
-    bool IsScalingFor(Player const* player) const;
+    // Player choice: Off, Simple or Advanced
+    ScalingMode GetPlayerMode(Player const* player) const;
+    bool IsScalingFor(Player const* player) const { return GetPlayerMode(player) != ScalingMode::Off; }
     void LoadPlayerChoice(Player* player);
-    void SetPlayerChoice(Player* player, bool enabled);
+    void SetPlayerChoice(Player* player, ScalingMode mode);
+    static char const* ModeName(ScalingMode mode);
+    // Scaling off: a kill DynamicScaling.World.Off.NoQuestCreditLevels or more levels below the player gives no
+    // quest progress or quest items (open world, scaled places only)
+    bool BlocksQuestCredit(Player const* player, ObjectGuid source) const;
 
     // Player buff (instance Simple mode)
     void UpdatePlayerBuff(Player* player);
@@ -284,7 +299,7 @@ private:
         Position pos;
     };
     std::unordered_map<ObjectGuid::LowType, EntryPosition> _entryPositions;
-    std::unordered_map<ObjectGuid::LowType, bool> _playerChoices;
+    std::unordered_map<ObjectGuid::LowType, ScalingMode> _playerChoices;
     std::unordered_map<uint32, std::pair<uint8, uint8>> _collectiveBrackets; // dungeon map -> randomizer bracket
     std::unordered_map<ObjectGuid::LowType, int32> _lastAnnounced; // stat percent last told to the player
 };

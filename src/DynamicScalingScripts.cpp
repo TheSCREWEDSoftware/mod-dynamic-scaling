@@ -11,6 +11,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
+#include "LootMgr.h"
 #include "Map.h"
 #include "Player.h"
 #include "QuestDef.h"
@@ -42,6 +43,9 @@ namespace
     {
         return map && !map->Instanceable();
     }
+
+    // Set right before the core checks whether a quest item in a loot may be shown to a player
+    thread_local bool CheckingQuestLootItem = false;
 
     // Players waiting for a dungeon respawn after releasing their spirit
     std::unordered_set<ObjectGuid::LowType> PendingRespawns;
@@ -223,50 +227,66 @@ private:
         bool settingsChanged = info->settingsVersion != sDynamicScaling->GetSettingsVersion();
         info->settingsVersion = sDynamicScaling->GetSettingsVersion();
 
+        // Is this place scaled at all (for either mode)?
         ZoneSettings settings;
         if (!sDynamicScaling->GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(),
-            settings) ||
+            settings, ScalingMode::Advanced) ||
             !sDynamicScaling->IsCreatureEligible(creature, true))
         {
-            if (info->scaledLevel)
+            if (info->scaledLevel && !sDynamicScaling->IsTargetedByViewer(creature))
+            {
                 sDynamicScaling->ResetCreature(creature);
+                info->worldMode = ScalingMode::Off;
+            }
             return;
         }
 
         if (info->cooldown > 0 && !settingsChanged)
             return;
 
+        // A player looking at it would lose the target when it is sent again; wait until nobody has it selected
+        if (config.worldSilentLevelChange && sDynamicScaling->IsTargetedByViewer(creature))
+            return;
+
         if (!info->originalLevel)
             info->originalLevel = creature->GetLevel();
 
         bool onlyOptedOut = false;
-        uint8 reference = GetWorldReferenceLevel(creature, config, onlyOptedOut);
+        ScalingMode mode = ScalingMode::Off;
+        uint8 reference = GetWorldReferenceLevel(creature, config, onlyOptedOut, mode);
         if (!reference)
         {
             // Only players who turned scaling off are watching: show them the real level
             if (onlyOptedOut && info->scaledLevel)
             {
                 sDynamicScaling->ResetCreature(creature);
+                info->worldMode = ScalingMode::Off;
                 info->cooldown = int32(config.worldRescaleCooldown);
             }
             return;
         }
 
+        // The nearest (reference) player's choice decides: Simple trails anywhere, Advanced keeps the window
+        sDynamicScaling->GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(), settings,
+            mode);
         uint8 target = sDynamicScaling->ComputeWorldLevel(creature, settings, reference, info->originalLevel);
-        if (target == creature->GetLevel() && !settingsChanged)
+        if (target == creature->GetLevel() && mode == info->worldMode && !settingsChanged)
             return;
 
+        info->worldMode = mode;
         sDynamicScaling->RescaleCreature(creature, target);
         info->cooldown = int32(config.worldRescaleCooldown);
     }
 
-    uint8 GetWorldReferenceLevel(Creature* creature, DSConfig const& config, bool& onlyOptedOut)
+    uint8 GetWorldReferenceLevel(Creature* creature, DSConfig const& config, bool& onlyOptedOut,
+        ScalingMode& mode)
     {
         onlyOptedOut = false;
+        float range = sDynamicScaling->GetWorldRange(creature->GetMap());
         std::list<Player*> players;
-        Acore::AnyPlayerInObjectRangeCheck check(creature, config.worldRange, true, true);
+        Acore::AnyPlayerInObjectRangeCheck check(creature, range, true, true);
         Acore::PlayerListSearcher<Acore::AnyPlayerInObjectRangeCheck> searcher(creature, players, check);
-        Cell::VisitObjects(creature, searcher, config.worldRange);
+        Cell::VisitObjects(creature, searcher, range);
 
         Player* chosen = nullptr;
         float chosenDist = 0.0f;
@@ -315,6 +335,7 @@ private:
             return 0;
         }
 
+        mode = sDynamicScaling->GetPlayerMode(chosen);
         if (!config.worldGroupAverage)
             return chosen->GetLevel();
 
@@ -421,8 +442,23 @@ public:
         PLAYERHOOK_ON_GIVE_EXP,
         PLAYERHOOK_ON_CREATURE_KILL,
         PLAYERHOOK_ON_CREATURE_KILLED_BY_PET,
-        PLAYERHOOK_ON_QUEST_COMPUTE_EXP
+        PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
+        PLAYERHOOK_PASSED_QUEST_KILLED_MONSTER_CREDIT,
+        PLAYERHOOK_ON_BEFORE_FILL_QUEST_LOOT_ITEM
     }) { }
+
+    // Scaling off: kills far below you give no quest progress
+    bool OnPlayerPassedQuestKilledMonsterCredit(Player* player, Quest const* /*quest*/, uint32 /*entry*/,
+        uint32 /*realEntry*/, ObjectGuid guid) override
+    {
+        return !sDynamicScaling->BlocksQuestCredit(player, guid);
+    }
+
+    // ...and no quest items: the next loot check (the global script below) is for this quest item
+    void OnPlayerBeforeFillQuestLootItem(Player* /*player*/, LootItem& /*item*/) override
+    {
+        CheckingQuestLootItem = true;
+    }
 
     void OnPlayerLogin(Player* player) override
     {
@@ -434,9 +470,9 @@ public:
             ChatHandler handler(player->GetSession());
             handler.SendSysMessage("This server is running the |cff4CFF00Dynamic Scaling|r module.");
             if (config.playerToggle)
-                handler.PSendSysMessage("Scaling is {} for you. Type |cffFFFF00.scaling on|r or "
-                    "|cffFFFF00.scaling off|r to change it.",
-                    sDynamicScaling->IsScalingFor(player) ? "|cff4CFF00on|r" : "|cffFF0000off|r");
+                handler.PSendSysMessage("Your scaling: |cff4CFF00{}|r. Type |cffFFFF00.scaling simple|r, "
+                    "|cffFFFF00.scaling advanced|r or |cffFFFF00.scaling off|r to change it.",
+                    DynamicScalingMgr::ModeName(sDynamicScaling->GetPlayerMode(player)));
         }
 
         sDynamicScaling->UpdatePlayerBuff(player);
@@ -545,7 +581,7 @@ public:
             }
 
             ZoneSettings settings;
-            if (!sDynamicScaling->GetZoneSettings(mapId, zoneId, 0, settings))
+            if (!sDynamicScaling->GetZoneSettings(mapId, zoneId, 0, settings, sDynamicScaling->GetPlayerMode(player)))
                 return;
         }
 
@@ -581,17 +617,6 @@ private:
         if (!IsWorldMap(map))
             return;
 
-        ZoneSettings settings;
-        bool scaled = sDynamicScaling->GetZoneSettings(killed->GetMapId(), killed->GetZoneId(), killed->GetAreaId(),
-            settings);
-        if (!scaled && config.xpOnlyScaledZones)
-            return;
-
-        uint32 minPct = scaled ? settings.xpMinPct : config.xpMinPct;
-        uint8 trail = scaled ? settings.trailLevels : config.worldTrailLevels;
-        if (!minPct)
-            return;
-
         std::vector<Player*> receivers;
         if (Group* group = killer->GetGroup())
         {
@@ -608,6 +633,18 @@ private:
         {
             // Only fill the gap: anyone who already got XP for this kill is skipped
             if (!sDynamicScaling->IsScalingFor(player) || Acore::XP::Gain(player, killed) != 0)
+                continue;
+
+            // Each player's own choice: Simple or Advanced settings for this place
+            ZoneSettings settings;
+            bool scaled = sDynamicScaling->GetZoneSettings(killed->GetMapId(), killed->GetZoneId(),
+                killed->GetAreaId(), settings, sDynamicScaling->GetPlayerMode(player));
+            if (!scaled && config.xpOnlyScaledZones)
+                continue;
+
+            uint32 minPct = scaled ? settings.xpMinPct : config.xpMinPct;
+            uint8 trail = scaled ? settings.trailLevels : config.worldTrailLevels;
+            if (!minPct)
                 continue;
 
             uint8 level = player->GetLevel();
@@ -656,8 +693,26 @@ private:
     }
 };
 
+class DynamicScalingGlobalScript : public GlobalScript
+{
+public:
+    DynamicScalingGlobalScript() : GlobalScript("DynamicScalingGlobalScript",
+        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK }) { }
+
+    // true = the player may not see this loot item
+    bool OnAllowedForPlayerLootCheck(Player const* player, ObjectGuid source) override
+    {
+        if (!CheckingQuestLootItem)
+            return false;
+
+        CheckingQuestLootItem = false;
+        return sDynamicScaling->BlocksQuestCredit(player, source);
+    }
+};
+
 void AddDynamicScalingScripts()
 {
+    new DynamicScalingGlobalScript();
     new DynamicScalingWorldScript();
     new DynamicScalingCreatureScript();
     new DynamicScalingUnitScript();

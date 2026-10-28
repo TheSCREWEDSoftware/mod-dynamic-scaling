@@ -12,10 +12,13 @@
 #include "Group.h"
 #include "Log.h"
 #include "Map.h"
+#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
+#include "UpdateData.h"
+#include "WorldPacket.h"
 
 #include <algorithm>
 
@@ -80,7 +83,10 @@ void DynamicScalingMgr::LoadConfig()
     c.enable = sConfigMgr->GetOption<bool>("DynamicScaling.Enable", true);
     c.announce = sConfigMgr->GetOption<bool>("DynamicScaling.Announce", true);
     c.playerToggle = sConfigMgr->GetOption<bool>("DynamicScaling.PlayerToggle.Enable", true);
-    c.playerDefault = sConfigMgr->GetOption<bool>("DynamicScaling.PlayerToggle.Default", true);
+    c.playerDefault = ToMode(sConfigMgr->GetOption<uint32>("DynamicScaling.PlayerToggle.Default", 1),
+        ScalingMode::Simple);
+    if (c.playerDefault == ScalingMode::Default)
+        c.playerDefault = ScalingMode::Simple;
 
     // The other module's settings live in the same config manager; quiet lookups, since it may not be installed
     c.collectiveSetting = sConfigMgr->GetOption<bool>("DynamicScaling.Collective.WorldRandomizer", true);
@@ -123,21 +129,22 @@ void DynamicScalingMgr::LoadConfig()
         1.0f, 100.0f);
 
     c.worldEnable = sConfigMgr->GetOption<bool>("DynamicScaling.World.Enable", true);
-    c.worldDefaultMode = ToMode(sConfigMgr->GetOption<uint32>("DynamicScaling.World.DefaultMode", 0), ScalingMode::Off);
-    if (c.worldDefaultMode == ScalingMode::Default)
-        c.worldDefaultMode = ScalingMode::Off;
+    c.worldDefaultScaled = sConfigMgr->GetOption<uint32>("DynamicScaling.World.DefaultMode", 0) != 0;
+    c.worldSimpleTrail = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Simple.TrailLevels", 3);
     c.worldTrailLevels = sConfigMgr->GetOption<uint8>("DynamicScaling.World.TrailLevels", 2);
     c.worldLevelSpread = sConfigMgr->GetOption<uint8>("DynamicScaling.World.LevelSpread", 1);
     c.worldReference = ToReference(sConfigMgr->GetOption<uint32>("DynamicScaling.World.Reference", 3),
         LevelReference::Nearest);
     c.worldGroupAverage = sConfigMgr->GetOption<bool>("DynamicScaling.World.GroupAverage", true);
-    c.worldRange = sConfigMgr->GetOption<float>("DynamicScaling.World.Range", 60.0f);
+    c.worldRange = sConfigMgr->GetOption<float>("DynamicScaling.World.Range", 0.0f);
+    c.worldSilentLevelChange = sConfigMgr->GetOption<bool>("DynamicScaling.World.SilentLevelChange", true);
     c.worldUpdateInterval = sConfigMgr->GetOption<uint32>("DynamicScaling.World.UpdateInterval", 2000);
     c.worldRescaleCooldown = sConfigMgr->GetOption<uint32>("DynamicScaling.World.RescaleCooldown", 10000);
     c.worldScaleNpcFlags = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleNpcFlags", false);
     c.worldScaleElites = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleElites", true);
     c.worldScaleRares = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleRares", true);
     c.worldScaleWorldBosses = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleWorldBosses", false);
+    c.offQuestCreditLevels = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Off.NoQuestCreditLevels", 5);
 
     c.xpAlwaysAward = sConfigMgr->GetOption<bool>("DynamicScaling.World.XP.AlwaysAward", true);
     c.xpMinPct = sConfigMgr->GetOption<uint32>("DynamicScaling.World.XP.MinPct", 25);
@@ -403,9 +410,12 @@ bool DynamicScalingMgr::GetInstanceSettings(Map const* map, InstanceSettings& ou
     return out.mode != ScalingMode::Off || out.levelScaling || out.respawn;
 }
 
-bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 areaId, ZoneSettings& out) const
+bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 areaId, ZoneSettings& out,
+    ScalingMode playerMode) const
 {
     out = ZoneSettings();
+    if (playerMode != ScalingMode::Simple && playerMode != ScalingMode::Advanced)
+        return false;
 
     // Collective with the randomizer: it owns open world levels
     if (!_config.enable || !_config.worldEnable || _config.collective)
@@ -433,24 +443,28 @@ bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 area
         }
     }
 
-    out.mode = row && row->mode != ScalingMode::Default ? row->mode : _config.worldDefaultMode;
-    if (out.mode == ScalingMode::Off)
+    // A row with mode 0, or with both sides of the window 0 (cities, starting areas), is never scaled; any other
+    // row is scaled the way the player chose. Places with no row follow DynamicScaling.World.DefaultMode.
+    if (row ? row->mode == ScalingMode::Off || (!row->levelMin && !row->levelMax) : !_config.worldDefaultScaled)
         return false;
+
+    out.mode = playerMode;
+    out.xpMinPct = _config.xpMinPct;
+
+    // Simple: trail behind the player anywhere, the zone's level range doesn't matter
+    if (playerMode == ScalingMode::Simple)
+    {
+        out.levelMin = 1;
+        out.levelMax = MAX_LEVEL;
+        out.trailLevels = _config.worldSimpleTrail;
+        return true;
+    }
 
     out.levelMin = row ? row->levelMin : 0;
     out.levelMax = row ? row->levelMax : 0;
-
-    // Both sides 0 means "keep the creature's own level" (starting zones, cities)
-    if (!out.levelMin && !out.levelMax && row)
-    {
-        out.mode = ScalingMode::Off;
-        return false;
-    }
-
     out.trailLevels = _config.worldTrailLevels;
-    out.xpMinPct = _config.xpMinPct;
 
-    if (out.mode == ScalingMode::Advanced && row)
+    if (row)
     {
         if (row->trailLevels >= 0)
             out.trailLevels = uint8(row->trailLevels);
@@ -461,6 +475,14 @@ bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 area
     }
 
     return true;
+}
+
+float DynamicScalingMgr::GetWorldRange(Map const* map) const
+{
+    if (_config.worldRange > 0.0f || !map)
+        return _config.worldRange > 0.0f ? _config.worldRange : 100.0f;
+
+    return map->GetVisibilityRange();
 }
 
 DSMapInfo* DynamicScalingMgr::GetMapInfo(Map* map) const
@@ -644,8 +666,9 @@ void DynamicScalingMgr::ComputeMultipliers(Creature* creature, DSCreatureInfo* i
         return;
 
     ZoneSettings settings;
-    if (!GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(), settings) ||
-        settings.mode != ScalingMode::Advanced)
+    if (info->worldMode != ScalingMode::Advanced ||
+        !GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(), settings,
+        ScalingMode::Advanced))
         return;
 
     info->healthMult = settings.healthMult;
@@ -670,10 +693,51 @@ void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level) const
     // SelectLevel() rebuilds health, mana, damage and attack power for the new level;
     // the SelectLevel hooks pick up pendingLevel and apply the multipliers.
     info->pendingLevel = level;
-    creature->SelectLevel();
 
+    bool silent = _config.worldSilentLevelChange && level != creature->GetLevel();
+    if (!silent)
+    {
+        creature->SelectLevel();
+        ApplyArmor(creature, info);
+        creature->UpdateAllStats();
+        return;
+    }
+
+    // The client plays a level up effect when it sees a unit's level go up. Change the level without sending the
+    // field, then send the creature again to everyone who sees it: one packet that removes and re-creates it.
+    creature->SetLevel(level, false);
+    creature->SelectLevel(false);
     ApplyArmor(creature, info);
     creature->UpdateAllStats();
+
+    std::vector<Player*> viewers;
+    creature->DoForAllVisiblePlayers([&](Player* player)
+    {
+        if (player && player->HaveAtClient(creature))
+            viewers.push_back(player);
+    });
+
+    for (Player* player : viewers)
+    {
+        UpdateData data;
+        creature->BuildOutOfRangeUpdateBlock(&data);
+        creature->BuildCreateUpdateBlockForPlayer(&data, player);
+        WorldPacket packet;
+        data.BuildPacket(packet);
+        player->SendDirectMessage(&packet);
+        player->GetInitialVisiblePackets(creature);
+    }
+}
+
+bool DynamicScalingMgr::IsTargetedByViewer(Creature* creature) const
+{
+    bool targeted = false;
+    creature->DoForAllVisiblePlayers([&](Player* player)
+    {
+        if (player && player->GetTarget() == creature->GetGUID())
+            targeted = true;
+    });
+    return targeted;
 }
 
 void DynamicScalingMgr::ResetCreature(Creature* creature) const
@@ -803,13 +867,46 @@ void DynamicScalingMgr::ForgetPlayer(Player* player)
     _lastAnnounced.erase(player->GetGUID().GetCounter());
 }
 
-bool DynamicScalingMgr::IsScalingFor(Player const* player) const
+ScalingMode DynamicScalingMgr::GetPlayerMode(Player const* player) const
 {
     if (!player || !_config.playerToggle)
-        return true;
+        return _config.playerDefault == ScalingMode::Off ? ScalingMode::Simple : _config.playerDefault;
 
     auto itr = _playerChoices.find(player->GetGUID().GetCounter());
     return itr != _playerChoices.end() ? itr->second : _config.playerDefault;
+}
+
+bool DynamicScalingMgr::BlocksQuestCredit(Player const* player, ObjectGuid source) const
+{
+    if (!player || !_config.enable || !_config.worldEnable || !_config.playerToggle || !_config.offQuestCreditLevels)
+        return false;
+
+    if (GetPlayerMode(player) != ScalingMode::Off || !source.IsCreatureOrVehicle())
+        return false;
+
+    Creature const* creature = ObjectAccessor::GetCreature(*player, source);
+    if (!creature || !creature->GetMap() || creature->GetMap()->Instanceable())
+        return false;
+
+    ZoneSettings settings;
+    if (!GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(), settings,
+        ScalingMode::Advanced))
+        return false;
+
+    return int32(creature->GetLevel()) + int32(_config.offQuestCreditLevels) <= int32(player->GetLevel());
+}
+
+char const* DynamicScalingMgr::ModeName(ScalingMode mode)
+{
+    switch (mode)
+    {
+        case ScalingMode::Simple:
+            return "Simple";
+        case ScalingMode::Advanced:
+            return "Advanced";
+        default:
+            return "Off";
+    }
 }
 
 void DynamicScalingMgr::LoadPlayerChoice(Player* player)
@@ -819,15 +916,15 @@ void DynamicScalingMgr::LoadPlayerChoice(Player* player)
 
     if (QueryResult result = CharacterDatabase.Query("SELECT `enabled` FROM `dynamic_scaling_player` WHERE `guid` = {}",
         guid))
-        _playerChoices[guid] = (*result)[0].Get<bool>();
+        _playerChoices[guid] = ToMode((*result)[0].Get<uint8>(), _config.playerDefault);
 }
 
-void DynamicScalingMgr::SetPlayerChoice(Player* player, bool enabled)
+void DynamicScalingMgr::SetPlayerChoice(Player* player, ScalingMode mode)
 {
     ObjectGuid::LowType guid = player->GetGUID().GetCounter();
-    _playerChoices[guid] = enabled;
+    _playerChoices[guid] = mode;
     CharacterDatabase.Execute("REPLACE INTO `dynamic_scaling_player` (`guid`, `enabled`) VALUES ({}, {})", guid,
-        enabled ? 1 : 0);
+        uint32(mode));
 
     if (Map* map = player->GetMap())
         if (map->IsDungeon())

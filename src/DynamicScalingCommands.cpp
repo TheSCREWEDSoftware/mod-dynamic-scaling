@@ -81,13 +81,15 @@ public:
         }
         else
         {
+            // Show the settings for your own choice (Advanced ones when your scaling is off)
+            ScalingMode playerMode = sDynamicScaling->GetPlayerMode(player);
             ZoneSettings settings;
             bool active = sDynamicScaling->GetZoneSettings(player->GetMapId(), player->GetZoneId(), player->GetAreaId(),
-                settings);
-            handler->PSendSysMessage("Zone {} / area {}: {}", player->GetZoneId(), player->GetAreaId(),
-                active ? "scaling" : "not scaled");
+                settings, playerMode == ScalingMode::Off ? ScalingMode::Advanced : playerMode);
+            handler->PSendSysMessage("Zone {} / area {}: {}, your choice: {}", player->GetZoneId(),
+                player->GetAreaId(), active ? "scaling" : "not scaled", DynamicScalingMgr::ModeName(playerMode));
             if (active)
-                handler->PSendSysMessage("  mode {}, window {}-{} (0 = creature's own), trail {} levels, XP floor {}%",
+                handler->PSendSysMessage("  {}: window {}-{} (0 = creature's own), trail {} levels, XP floor {}%",
                     ModeName(settings.mode), settings.levelMin, settings.levelMax, settings.trailLevels,
                     settings.xpMinPct);
         }
@@ -98,15 +100,16 @@ public:
             if (!info)
                 handler->PSendSysMessage("Selected {}: no scaling data.", creature->GetName());
             else
-                handler->PSendSysMessage("Selected {}: level {} (own {}), health x{:.2f}, damage x{:.2f}, "
+                handler->PSendSysMessage("Selected {}: level {} (own {}, scaled {}), health x{:.2f}, damage x{:.2f}, "
                     "mana x{:.2f}, armor x{:.2f}", creature->GetName(), creature->GetLevel(), info->originalLevel,
-                    info->healthMult, info->damageMult, info->manaMult, info->armorMult);
+                    info->scaledLevel ? DynamicScalingMgr::ModeName(info->worldMode) : "no", info->healthMult,
+                    info->damageMult, info->manaMult, info->armorMult);
         }
 
         return true;
     }
 
-    // .scaling [on|off]: players choose whether they want a scaled experience
+    // .scaling [simple|advanced|off|on]: players choose their open world scaling
     static bool HandleScalingCommand(ChatHandler* handler, Optional<std::string> choice)
     {
         Player* player = handler->GetSession()->GetPlayer();
@@ -120,28 +123,40 @@ public:
 
         if (!choice)
         {
-            handler->PSendSysMessage("Scaling is {} for you. Use .scaling on or .scaling off.",
-                sDynamicScaling->IsScalingFor(player) ? "on" : "off");
+            handler->PSendSysMessage("Your scaling: {}. Use .scaling simple, .scaling advanced or .scaling off.",
+                DynamicScalingMgr::ModeName(sDynamicScaling->GetPlayerMode(player)));
+            handler->SendSysMessage("  Simple: creatures in the open world trail behind your level anywhere, and "
+                "always give experience.");
+            handler->SendSysMessage("  Advanced: creatures trail behind you inside each zone's level range.");
+            if (config.offQuestCreditLevels)
+                handler->PSendSysMessage("  Off: creatures keep their own levels; those {} or more levels below you "
+                    "give no quest items or progress.", config.offQuestCreditLevels);
+            else
+                handler->SendSysMessage("  Off: creatures keep their own levels.");
             return true;
         }
 
         std::string value = *choice;
         std::transform(value.begin(), value.end(), value.begin(), ::tolower);
 
-        bool enabled;
-        if (value == "on" || value == "1" || value == "yes")
-            enabled = true;
+        ScalingMode mode;
+        if (value == "simple" || value == "1")
+            mode = ScalingMode::Simple;
+        else if (value == "advanced" || value == "complex" || value == "2")
+            mode = ScalingMode::Advanced;
         else if (value == "off" || value == "0" || value == "no")
-            enabled = false;
+            mode = ScalingMode::Off;
+        else if (value == "on" || value == "yes")
+            mode = config.playerDefault == ScalingMode::Off ? ScalingMode::Simple : config.playerDefault;
         else
         {
-            handler->SendErrorMessage("Use .scaling on or .scaling off.");
+            handler->SendErrorMessage("Use .scaling simple, .scaling advanced or .scaling off.");
             return false;
         }
 
-        sDynamicScaling->SetPlayerChoice(player, enabled);
-        handler->PSendSysMessage("Scaling is now {} for you. Nearby creatures update within a few seconds once out "
-            "of combat.", enabled ? "on" : "off");
+        sDynamicScaling->SetPlayerChoice(player, mode);
+        handler->PSendSysMessage("Your scaling is now {}. Nearby creatures update within a few seconds once out of "
+            "combat.", DynamicScalingMgr::ModeName(mode));
         return true;
     }
 

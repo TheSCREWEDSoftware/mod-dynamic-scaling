@@ -5,7 +5,7 @@ One AzerothCore module for scaling, with a **Simple** and an **Advanced** settin
 | Where | Simple | Advanced |
 |---|---|---|
 | Instances (dungeons, raids) | Players get stats and spell power for every missing player (SoloCraft style) | Creatures get less health, damage and mana for fewer players (AutoBalance style) |
-| Open world | Creatures trail behind your level inside the zone's level window (Ascension "Reborn" style) | The same, plus per row trail, health, damage and XP floor |
+| Open world (each player picks) | Creatures trail behind your level anywhere, 3 levels by default (Ascension style) | Creatures trail behind you inside each zone's level window, with per row trail, health, damage and XP floor |
 
 Extras:
 
@@ -17,7 +17,11 @@ Extras:
   at the instance entrance. The entrance comes from `areatrigger_teleport`, so no coordinates need typing.
   A map row can set manual coordinates instead.
 - **XP always awarded**: gray kills and low quests still give some XP in scaled zones.
-- **Player toggle**: players choose `.scaling on` / `.scaling off`; the server decides if they may and the default.
+- **Player choice**: each player picks `.scaling simple`, `.scaling advanced` or `.scaling off` for the open world;
+  the server decides if they may and the default (Simple). With scaling off, creatures keep their levels, and those
+  5 or more levels below you give no quest progress or quest items (`World.Off.NoQuestCreditLevels`).
+- **No level up effect**: a creature changing level is sent again to whoever sees it, instead of "dinging"
+  (`World.SilentLevelChange`).
 
 ## With mod-world-randomizer (collective)
 
@@ -60,7 +64,7 @@ So `level_min = 0, level_max = 80` means "only scale up", and `level_min = 1, le
   config defaults, which scale every instance from level 1 to 80 in Simple mode.
 - `dynamic_scaling_zone` (world DB): per zone or area. Ships with every outdoor zone and its level range taken
   from your aowow (`Stuff/zone-extract`), with cities, starting areas, Wintergrasp and the Scarlet Enclave at `0/0`.
-- `dynamic_scaling_player` (characters DB): each player's `.scaling` choice.
+- `dynamic_scaling_player` (characters DB): each player's `.scaling` choice (`enabled`: 0 off, 1 Simple, 2 Advanced).
 - `spell_dbc` 150100: the server side aura that carries the Simple mode stat buff.
 
 The SQL in `data/sql` is applied by the core's DB updater (or `dbimport`) like any module.
@@ -69,7 +73,7 @@ The SQL in `data/sql` is applied by the core's DB updater (or `dbimport`) like a
 
 | Command | Who | What |
 |---|---|---|
-| `.scaling [on\|off]` | players | Show or change your own scaling |
+| `.scaling [simple\|advanced\|off]` | players | Show or change your own open world scaling |
 | `.dscale info` | GM | Settings for your map / zone, and for the selected creature |
 | `.dscale reload` | admin | Reload both tables; creatures rescale once out of combat |
 | `.dscale rescale` | GM | Rescale the selected creature on its next update |
@@ -86,7 +90,12 @@ Config changes need `.reload config`.
   at most once per `World.RescaleCooldown`. Creatures with NPC flags, civilians, critters, triggers and
   unattackable creatures are left alone.
 - A creature's level is shared by everyone who sees it (3.3.5 clients get one level per creature), so the
-  reference player is the nearest one by default, or the group average.
+  reference player is the nearest one by default, or the group average, and that player's choice (Simple or
+  Advanced) decides how it scales.
+- Creatures look for players within `World.Range` yards; 0 (the default) means the map's visibility distance, so
+  every creature you can see scales to you.
+- In a zone row, `mode` 0 or a `0/0` window means "never scaled"; any other row is scaled the way the player chose.
+  Simple ignores the window; Advanced uses it and the row's other fields.
 
 ## Uninstall
 

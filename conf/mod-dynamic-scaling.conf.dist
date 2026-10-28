@@ -34,20 +34,25 @@ DynamicScaling.Announce = 1
 
 #
 #    DynamicScaling.PlayerToggle.Enable
-#        Description: Let players turn scaling off or on for themselves with .scaling off / .scaling on.
-#                     A player with scaling off gets no Simple mode buff and no XP floors, and does not
-#                     pull creature levels (in the open world creatures near only them keep their own level;
-#                     in instances they are left out of the group's reference level).
+#        Description: Let players pick their own open world scaling with .scaling simple / advanced / off:
+#                       Simple   - creatures trail behind your level anywhere in the open world (Ascension style):
+#                                  World.Simple.TrailLevels below you, whatever the zone's level range.
+#                       Advanced - creatures trail behind you inside each zone's level window, with the per row
+#                                  trail, health, damage and XP floor of `dynamic_scaling_zone`.
+#                       Off      - creatures keep their own levels. No Simple mode buff in instances, no XP floors,
+#                                  left out of an instance's reference level, and see World.Off.NoQuestCreditLevels.
+#                     A creature scales for the nearest player (World.Reference), with that player's choice.
 #        Default:     1 - enabled
-#                     0 - disabled (everyone is scaled)
+#                     0 - disabled (everyone uses PlayerToggle.Default; Off counts as Simple)
 
 DynamicScaling.PlayerToggle.Enable = 1
 
 #
 #    DynamicScaling.PlayerToggle.Default
-#        Description: Scaling state for players who never used .scaling.
-#        Default:     1 - on
-#                     0 - off (players opt in)
+#        Description: Choice for players who never used .scaling.
+#        Default:     1 - Simple
+#                     2 - Advanced
+#                     0 - Off (players opt in)
 
 DynamicScaling.PlayerToggle.Default = 1
 
@@ -209,17 +214,27 @@ DynamicScaling.World.Enable = 1
 
 #
 #    DynamicScaling.World.DefaultMode
-#        Description: Mode for places with no zone, area or map row. The shipped zone rows turn every
-#                     outdoor zone on (mode 1), so 0 here only affects places without a row.
-#        Default:     0 - Off
-#                     1 - Simple   (trail behind the player inside the zone's level window)
-#                     2 - Advanced (also per row trail_levels, health_mult, damage_mult, xp_min_pct)
+#        Description: Whether places with no zone, area or map row scale. The shipped zone rows cover every
+#                     outdoor zone, so this only matters for places without a row. A row with mode 0, or with
+#                     level_min = level_max = 0 (cities, starting areas), never scales; any other row scales the
+#                     way each player chose (Simple or Advanced).
+#        Default:     0 - not scaled
+#                     1 - scaled
 
 DynamicScaling.World.DefaultMode = 0
 
 #
+#    DynamicScaling.World.Simple.TrailLevels
+#        Description: Simple: how many levels creatures sit below the player. With LevelSpread 1, a level 60 sees
+#                     level 57-58 creatures and a level 12 sees 9-10, in any zone.
+#        Default:     3
+
+DynamicScaling.World.Simple.TrailLevels = 3
+
+#
 #    DynamicScaling.World.TrailLevels
-#        Description: How many levels creatures sit below the player.
+#        Description: Advanced: how many levels creatures sit below the player, inside the zone's level window
+#                     (a row's trail_levels overrides it).
 #        Default:     2
 
 DynamicScaling.World.TrailLevels = 2
@@ -250,10 +265,21 @@ DynamicScaling.World.GroupAverage = 1
 
 #
 #    DynamicScaling.World.Range
-#        Description: Yards around a creature to look for players.
-#        Default:     60
+#        Description: Yards around a creature to look for players. 0 = the map's visibility distance
+#                     (Visibility.Distance.Continents), so every creature you can see scales to you.
+#        Default:     0
 
-DynamicScaling.World.Range = 60
+DynamicScaling.World.Range = 0
+
+#
+#    DynamicScaling.World.SilentLevelChange
+#        Description: Change a creature's level without the client's level up effect: the creature is sent again
+#                     (removed and re-created in one packet) to everyone who sees it. A creature someone has
+#                     selected waits until nobody has it selected, so nobody loses their target.
+#        Default:     1 - enabled
+#                     0 - disabled (normal level change, with the level up effect when it goes up)
+
+DynamicScaling.World.SilentLevelChange = 1
 
 #
 #    DynamicScaling.World.UpdateInterval
@@ -286,6 +312,15 @@ DynamicScaling.World.ScaleNpcFlags = 0
 DynamicScaling.World.ScaleElites = 1
 DynamicScaling.World.ScaleRares = 1
 DynamicScaling.World.ScaleWorldBosses = 0
+
+#
+#    DynamicScaling.World.Off.NoQuestCreditLevels
+#        Description: Players with scaling off: creatures this many levels or more below them give no quest
+#                     progress and drop no quest items (open world, scaled places only), like Ascension.
+#        Default:     5
+#                     0 - disabled
+
+DynamicScaling.World.Off.NoQuestCreditLevels = 5
 
 #
 #    DynamicScaling.World.XP.AlwaysAward
