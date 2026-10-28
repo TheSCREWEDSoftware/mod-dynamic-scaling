@@ -5,9 +5,11 @@
 
 void AddDynamicScalingScripts();
 void AddDynamicScalingCommandScripts();
+void AddDynamicScalingAddonScripts();
 
 void Addmod_dynamic_scalingScripts()
 {
     AddDynamicScalingScripts();
     AddDynamicScalingCommandScripts();
+    AddDynamicScalingAddonScripts();
 }

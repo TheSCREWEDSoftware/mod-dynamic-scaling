@@ -8,6 +8,7 @@
 DROP TABLE IF EXISTS `dynamic_scaling_map`;
 DROP TABLE IF EXISTS `dynamic_scaling_zone`;
 DROP TABLE IF EXISTS `dynamic_scaling_creature`;
+DROP TABLE IF EXISTS `dynamic_scaling_category`;
 
 -- The Simple mode buff (DynamicScaling.Simple.SpellId; change the id if you changed it in the config)
 DELETE FROM `spell_dbc` WHERE `ID` = 150100;

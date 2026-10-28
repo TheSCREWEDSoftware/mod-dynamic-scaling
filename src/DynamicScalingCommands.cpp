@@ -15,6 +15,7 @@
 #include "Player.h"
 
 #include <algorithm>
+#include <string>
 
 using namespace Acore::ChatCommands;
 
@@ -106,10 +107,22 @@ public:
                     info->damageMult, info->manaMult, info->armorMult);
 
             if (!creature->GetMap()->Instanceable())
-                handler->PSendSysMessage("  distance {:.0f} yd, scaling range {:.0f} yd, {}, {}",
+            {
+                std::string reason = sDynamicScaling->NeverScaleReason(creature);
+                handler->PSendSysMessage("  distance {:.0f} yd, scaling range {:.0f} yd, {}",
                     creature->GetDistance(player), sDynamicScaling->GetWorldRange(creature->GetMap()),
-                    sDynamicScaling->IsCreatureEligible(creature, true) ? "can scale" : "never scales (NPC, "
-                    "civilian, unattackable or world boss)", creature->IsInCombat() ? "in combat" : "out of combat");
+                    creature->IsInCombat() ? "in combat" : "out of combat");
+                handler->PSendSysMessage("  {}", reason.empty() ? "can scale" : "never scales: " + reason);
+            }
+
+            uint8 own = 0;
+            uint8 simple = 0;
+            uint8 advanced = 0;
+            sDynamicScaling->PreviewWorldLevels(creature, player, own, simple, advanced);
+            handler->PSendSysMessage("Creature default level: {}", own);
+            handler->PSendSysMessage("Creature Simple level: {}", simple ? std::to_string(simple) : "not scaled");
+            handler->PSendSysMessage("Creature Advanced level: {}",
+                advanced ? std::to_string(advanced) : "not scaled");
         }
 
         return true;

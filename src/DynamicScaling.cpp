@@ -141,12 +141,9 @@ void DynamicScalingMgr::LoadConfig()
     c.worldScaleOnEngage = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleOnEngage", true);
     c.worldUpdateInterval = sConfigMgr->GetOption<uint32>("DynamicScaling.World.UpdateInterval", 2000);
     c.worldRescaleCooldown = sConfigMgr->GetOption<uint32>("DynamicScaling.World.RescaleCooldown", 10000);
-    c.worldScaleNpcFlags = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleNpcFlags", false);
-    c.worldScaleElites = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleElites", true);
-    c.worldScaleRares = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleRares", true);
-    c.worldScaleWorldBosses = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleWorldBosses", false);
-    c.worldScaleGuards = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleGuards", false);
-    c.worldScaleFactionNpcs = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleFactionNpcs", false);
+    c.worldUseDBOverride = sConfigMgr->GetOption<bool>("DynamicScaling.World.UseDBOverride", false);
+    c.worldNeverScale = ParseCategories(sConfigMgr->GetOption<std::string>("DynamicScaling.World.NeverScale",
+        "NpcFlags Civilian Guard PvP Unattackable WorldBoss Boss"));
     c.offQuestCreditLevels = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Off.NoQuestCreditLevels", 5);
 
     c.xpAlwaysAward = sConfigMgr->GetOption<bool>("DynamicScaling.World.XP.AlwaysAward", true);
@@ -247,8 +244,24 @@ void DynamicScalingMgr::LoadTables()
         } while (result->NextRow());
     }
 
-    LOG_INFO("module", "mod-dynamic-scaling: loaded {} map rows, {} zone/area rows and {} creature rules.",
-        _instanceRows.size(), _zoneRows.size(), _creatureRules.size());
+    _dbNeverScale = 0;
+    if (QueryResult result = WorldDatabase.Query("SELECT `category`, `scale` FROM `dynamic_scaling_category`"))
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            uint32 category = ParseCategories(fields[0].Get<std::string>());
+            if (!category)
+                LOG_ERROR("module", "mod-dynamic-scaling: unknown category '{}' in `dynamic_scaling_category`.",
+                    fields[0].Get<std::string>());
+            else if (!fields[1].Get<uint8>())
+                _dbNeverScale |= category;
+        } while (result->NextRow());
+    }
+
+    LOG_INFO("module", "mod-dynamic-scaling: loaded {} map rows, {} zone/area rows and {} creature rules; never "
+        "scale: {}.", _instanceRows.size(), _zoneRows.size(), _creatureRules.size(),
+        CategoryNames(GetNeverScaleMask()));
 
     if (!sSpellMgr->GetSpellInfo(_config.simpleSpellId))
         LOG_ERROR("module", "mod-dynamic-scaling: spell {} (DynamicScaling.Instance.Simple.SpellId) is missing from "
@@ -564,56 +577,153 @@ uint8 DynamicScalingMgr::GetReferenceLevel(DSMapInfo const* info) const
     }
 }
 
+namespace
+{
+    struct CategoryName
+    {
+        uint32 category;
+        char const* name;
+    };
+
+    constexpr CategoryName CATEGORY_NAMES[] =
+    {
+        { DS_CAT_NPC_FLAGS, "NpcFlags" }, { DS_CAT_CIVILIAN, "Civilian" }, { DS_CAT_GUARD, "Guard" },
+        { DS_CAT_PVP, "PvP" }, { DS_CAT_UNATTACKABLE, "Unattackable" }, { DS_CAT_ELITE, "Elite" },
+        { DS_CAT_RARE, "Rare" }, { DS_CAT_WORLD_BOSS, "WorldBoss" }, { DS_CAT_BOSS, "Boss" }
+    };
+
+    uint32 CreatureCategories(Creature const* creature)
+    {
+        uint32 categories = 0;
+        if (creature->GetNpcFlags() != UNIT_NPC_FLAG_NONE)
+            categories |= DS_CAT_NPC_FLAGS;
+        if (creature->IsCivilian())
+            categories |= DS_CAT_CIVILIAN;
+        if (creature->IsGuard())
+            categories |= DS_CAT_GUARD;
+        if (creature->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE) || creature->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
+            categories |= DS_CAT_UNATTACKABLE;
+        if (creature->IsDungeonBoss())
+            categories |= DS_CAT_BOSS;
+
+        if (FactionTemplateEntry const* faction = creature->GetFactionTemplateEntry())
+        {
+            if (faction->ourMask & (FACTION_MASK_ALLIANCE | FACTION_MASK_HORDE))
+                categories |= DS_CAT_PVP;
+            else
+                for (uint32 playerFaction : { 1u, 2u }) // Human, Orc
+                    if (FactionTemplateEntry const* side = sFactionTemplateStore.LookupEntry(playerFaction))
+                        if (faction->IsFriendlyTo(*side))
+                            categories |= DS_CAT_PVP;
+        }
+
+        switch (creature->GetCreatureTemplate()->rank)
+        {
+            case CREATURE_ELITE_ELITE:
+                categories |= DS_CAT_ELITE;
+                break;
+            case CREATURE_ELITE_RAREELITE:
+                categories |= DS_CAT_ELITE | DS_CAT_RARE;
+                break;
+            case CREATURE_ELITE_RARE:
+                categories |= DS_CAT_RARE;
+                break;
+            case CREATURE_ELITE_WORLDBOSS:
+                categories |= DS_CAT_WORLD_BOSS;
+                break;
+            default:
+                break;
+        }
+
+        return categories;
+    }
+}
+
+uint32 DynamicScalingMgr::ParseCategories(std::string const& text)
+{
+    uint32 mask = 0;
+    std::string word;
+    auto flush = [&]()
+    {
+        for (CategoryName const& entry : CATEGORY_NAMES)
+            if (!word.empty() && StringEqualI(word, entry.name))
+                mask |= entry.category;
+        word.clear();
+    };
+
+    for (char c : text)
+    {
+        if (c == ' ' || c == ',' || c == ';' || c == '|')
+            flush();
+        else
+            word += c;
+    }
+    flush();
+    return mask;
+}
+
+std::string DynamicScalingMgr::CategoryNames(uint32 mask)
+{
+    std::string names;
+    for (CategoryName const& entry : CATEGORY_NAMES)
+        if (mask & entry.category)
+            names += (names.empty() ? "" : ", ") + std::string(entry.name);
+    return names.empty() ? "none" : names;
+}
+
 bool DynamicScalingMgr::IsCreatureEligible(Creature* creature, bool world) const
 {
     if (!creature || creature->IsPet() || creature->IsTotem() || creature->IsCritter() || creature->IsTrigger())
         return false;
 
-    if (creature->GetCharmerOrOwnerGUID().IsPlayer())
+    if (creature->GetCharmerOrOwnerGUID().IsPlayer() || !creature->GetCreatureTemplate())
         return false;
 
-    CreatureTemplate const* cInfo = creature->GetCreatureTemplate();
-    if (!cInfo)
-        return false;
+    return !world || CheckWorldEligible(creature, 0, nullptr);
+}
 
-    if (!world)
-        return true;
+std::string DynamicScalingMgr::NeverScaleReason(Creature* creature) const
+{
+    if (!creature)
+        return "no creature";
 
-    // `dynamic_scaling_creature` beats every check below
+    if (creature->IsPet() || creature->IsTotem() || creature->IsCritter() || creature->IsTrigger() ||
+        creature->GetCharmerOrOwnerGUID().IsPlayer())
+        return "pet, totem, critter or trigger";
+
+    std::string reason;
+    CheckWorldEligible(creature, 0, &reason);
+    return reason;
+}
+
+bool DynamicScalingMgr::CheckWorldEligible(Creature* creature, uint8 depth, std::string* reason) const
+{
+    // `dynamic_scaling_creature` beats everything below
     auto rule = _creatureRules.find(creature->GetEntry());
     if (rule != _creatureRules.end())
-        return rule->second;
-
-    if (creature->IsCivilian())
-        return false;
-
-    if (!_config.worldScaleGuards && creature->IsGuard())
-        return false;
-
-    if (!_config.worldScaleFactionNpcs)
-        if (FactionTemplateEntry const* faction = creature->GetFactionTemplateEntry())
-            if (faction->ourMask & (FACTION_MASK_ALLIANCE | FACTION_MASK_HORDE))
-                return false;
-
-    if (!_config.worldScaleNpcFlags && creature->GetNpcFlags() != UNIT_NPC_FLAG_NONE)
-        return false;
-
-    if (creature->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE) || creature->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
-        return false;
-
-    switch (cInfo->rank)
     {
-        case CREATURE_ELITE_ELITE:
-            return _config.worldScaleElites;
-        case CREATURE_ELITE_RAREELITE:
-            return _config.worldScaleElites && _config.worldScaleRares;
-        case CREATURE_ELITE_RARE:
-            return _config.worldScaleRares;
-        case CREATURE_ELITE_WORLDBOSS:
-            return _config.worldScaleWorldBosses;
-        default:
-            return true;
+        if (!rule->second && reason)
+            *reason = "creature rule (dynamic_scaling_creature)";
+        return rule->second;
     }
+
+    // Pets and summons of a creature (a guard's gryphon, a flight master's defenders) follow their owner
+    Unit* owner = creature->GetOwner();
+    if (!owner && creature->IsSummon())
+        owner = creature->ToTempSummon()->GetSummonerUnit();
+    if (owner && owner != creature && owner->IsCreature() && depth < 2)
+    {
+        bool eligible = CheckWorldEligible(owner->ToCreature(), depth + 1, reason);
+        if (!eligible && reason)
+            *reason = "its owner " + owner->GetName() + " never scales: " + *reason;
+        return eligible;
+    }
+
+    uint32 blocked = CreatureCategories(creature) & GetNeverScaleMask();
+    if (blocked && reason)
+        *reason = CategoryNames(blocked) + (_config.worldUseDBOverride ? " (dynamic_scaling_category)" :
+            " (DynamicScaling.World.NeverScale)");
+    return !blocked;
 }
 
 uint8 DynamicScalingMgr::ComputeInstanceLevel(Creature* /*creature*/, InstanceSettings const& settings,
@@ -638,6 +748,28 @@ uint8 DynamicScalingMgr::ComputeInstanceLevel(Creature* /*creature*/, InstanceSe
         lower = upper;
 
     return ClampLevel(std::clamp(target, lower, upper));
+}
+
+bool DynamicScalingMgr::PreviewWorldLevels(Creature* creature, Player* player, uint8& own, uint8& simple,
+    uint8& advanced) const
+{
+    DSCreatureInfo const* info = creature->CustomData.Get<DSCreatureInfo>(CREATURE_INFO_KEY);
+    own = info && info->originalLevel ? info->originalLevel : creature->GetLevel();
+    simple = 0;
+    advanced = 0;
+
+    if (!creature->GetMap() || creature->GetMap()->Instanceable() || !IsCreatureEligible(creature, true))
+        return false;
+
+    ZoneSettings settings;
+    if (GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(), settings,
+        ScalingMode::Simple))
+        simple = ComputeWorldLevel(creature, settings, player->GetLevel(), own);
+    if (GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(), settings,
+        ScalingMode::Advanced))
+        advanced = ComputeWorldLevel(creature, settings, player->GetLevel(), own);
+
+    return simple || advanced;
 }
 
 uint8 DynamicScalingMgr::ComputeWorldLevel(Creature* creature, ZoneSettings const& settings, uint8 referenceLevel,

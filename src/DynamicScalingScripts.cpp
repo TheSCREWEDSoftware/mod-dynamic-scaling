@@ -106,7 +106,15 @@ public:
         info->originalLevel = level;
         info->scaledLevel = 0;
 
+        info->worldMode = ScalingMode::Off;
+
         Map* map = creature->GetMap();
+        if (map && IsWorldMap(map))
+        {
+            SpawnAtWorldLevel(creature, info, map, level);
+            return;
+        }
+
         if (!map || !map->IsDungeon() || !sDynamicScaling->IsCreatureEligible(creature, false))
             return;
 
@@ -196,6 +204,53 @@ public:
     }
 
 private:
+    // Spawns, respawns and summons come in already at the level of the nearest player, so nobody sees them change
+    void SpawnAtWorldLevel(Creature* creature, DSCreatureInfo* info, Map* map, uint8& level)
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.worldEnable || !sDynamicScaling->IsCreatureEligible(creature, true))
+            return;
+
+        float range = sDynamicScaling->GetWorldRange(map);
+        Player* nearest = nullptr;
+        float nearestDist = range * range;
+        for (auto const& ref : map->GetPlayers())
+        {
+            Player* player = ref.GetSource();
+            if (!player || player->IsGameMaster() || player->IsInFlight() || !sDynamicScaling->IsScalingFor(player))
+                continue;
+
+            float dist = player->GetExactDist2dSq(creature->GetPositionX(), creature->GetPositionY());
+            if (dist <= nearestDist)
+            {
+                nearest = player;
+                nearestDist = dist;
+            }
+        }
+
+        if (!nearest)
+            return;
+
+        uint32 zoneId = 0;
+        uint32 areaId = 0;
+        map->GetZoneAndAreaId(creature->GetPhaseMask(), zoneId, areaId, creature->GetPositionX(),
+            creature->GetPositionY(), creature->GetPositionZ());
+
+        ScalingMode mode = sDynamicScaling->GetPlayerMode(nearest);
+        ZoneSettings settings;
+        if (!sDynamicScaling->GetZoneSettings(map->GetId(), zoneId, areaId, settings, mode))
+            return;
+
+        uint8 target = sDynamicScaling->ComputeWorldLevel(creature, settings, nearest->GetLevel(), level);
+        if (target == level)
+            return;
+
+        level = target;
+        info->scaledLevel = target;
+        info->worldMode = mode;
+        info->cooldown = int32(config.worldRescaleCooldown);
+    }
+
     void UpdateInstanceCreature(Creature* creature, DSCreatureInfo* info, Map* map)
     {
         DSMapInfo* mapInfo = sDynamicScaling->GetMapInfo(map);

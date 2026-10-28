@@ -65,7 +65,9 @@ So `level_min = 0, level_max = 80` means "only scale up", and `level_min = 1, le
 - `dynamic_scaling_zone` (world DB): per zone or area. Ships with every outdoor zone and its level range taken
   from your aowow (`Stuff/zone-extract`), with cities, starting areas, Wintergrasp and the Scarlet Enclave at `0/0`.
 - `dynamic_scaling_creature` (world DB): creature entries that always (`scale` 1) or never (0) scale in the
-  open world, over the config (guards, faction NPCs, NPC flags, ranks).
+  open world, over every category rule.
+- `dynamic_scaling_category` (world DB): which kinds of creature scale, used instead of `World.NeverScale` when
+  `World.UseDBOverride = 1`.
 - `dynamic_scaling_player` (characters DB): each player's `.scaling` choice (`enabled`: 0 off, 1 Simple, 2 Advanced).
 - `spell_dbc` 150100: the server side aura that carries the Simple mode stat buff.
 
@@ -81,6 +83,14 @@ The SQL in `data/sql` is applied by the core's DB updater (or `dbimport`) like a
 | `.dscale rescale` | GM | Rescale the selected creature on its next update |
 
 Config changes need `.reload config`.
+
+## The addon
+
+`addon/DynamicScaling` is a client addon (3.3.5): copy it to `Interface/AddOns`. On login it asks which leveling
+experience you want (No Scaling, Simple or Advanced), with "Do not ask again on next login" (this character) and
+"Do not ask on new characters" (every character). `/dscale` opens a window with your choice and the creatures
+around you: their own level, and what they would be for you in Simple and Advanced. It talks to the server with
+addon whispers (prefix `DSCALE`, see `src/DynamicScalingAddon.cpp`).
 
 ## How it works
 

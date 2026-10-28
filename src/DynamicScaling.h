@@ -46,6 +46,20 @@ enum class LevelReference : uint8
     Nearest = 3 // world only
 };
 
+// Kinds of creature that can be kept from scaling in the open world (DynamicScaling.World.NeverScale)
+enum DSCreatureCategory : uint32
+{
+    DS_CAT_NPC_FLAGS    = 0x001, // vendors, quest givers, trainers, flight masters...
+    DS_CAT_CIVILIAN     = 0x002,
+    DS_CAT_GUARD        = 0x004,
+    DS_CAT_PVP          = 0x008, // friendly to Alliance or Horde players
+    DS_CAT_UNATTACKABLE = 0x010,
+    DS_CAT_ELITE        = 0x020,
+    DS_CAT_RARE         = 0x040,
+    DS_CAT_WORLD_BOSS   = 0x080,
+    DS_CAT_BOSS         = 0x100  // CREATURE_FLAG_EXTRA_DUNGEON_BOSS
+};
+
 // Value in a table row that means "use the config value"
 constexpr uint8 DS_USE_CONFIG = 255;
 
@@ -195,12 +209,9 @@ struct DSConfig
     bool worldScaleOnEngage = true;        // rescale to the player a creature engages
     uint32 worldUpdateInterval = 2000;
     uint32 worldRescaleCooldown = 10000;
-    bool worldScaleNpcFlags = false;
-    bool worldScaleElites = true;
-    bool worldScaleRares = true;
-    bool worldScaleWorldBosses = false;
-    bool worldScaleGuards = false;
-    bool worldScaleFactionNpcs = false;    // creatures of the Alliance or Horde (PvP NPCs, faction leaders...)
+    bool worldUseDBOverride = false;       // categories from `dynamic_scaling_category` instead of NeverScale
+    uint32 worldNeverScale = DS_CAT_NPC_FLAGS | DS_CAT_CIVILIAN | DS_CAT_GUARD | DS_CAT_PVP | DS_CAT_UNATTACKABLE |
+        DS_CAT_WORLD_BOSS | DS_CAT_BOSS;
 
     // Players with scaling off: kills this many levels below them give no quest progress or quest items (0 = off)
     uint8 offQuestCreditLevels = 5;
@@ -249,6 +260,13 @@ public:
 
     // Creature scaling
     bool IsCreatureEligible(Creature* creature, bool world) const;
+    // Empty when the creature can scale in the open world, else why not
+    std::string NeverScaleReason(Creature* creature) const;
+    uint32 GetNeverScaleMask() const { return _config.worldUseDBOverride ? _dbNeverScale : _config.worldNeverScale; }
+    static uint32 ParseCategories(std::string const& text);
+    static std::string CategoryNames(uint32 mask);
+    // What the creature would be for this player: its own level, and in Simple / Advanced (0 = not scaled there)
+    bool PreviewWorldLevels(Creature* creature, Player* player, uint8& own, uint8& simple, uint8& advanced) const;
     uint8 ComputeInstanceLevel(Creature* creature, InstanceSettings const& settings, DSMapInfo const* mapInfo,
         uint8 originalLevel) const;
     uint8 ComputeWorldLevel(Creature* creature, ZoneSettings const& settings, uint8 referenceLevel,
@@ -288,6 +306,8 @@ private:
     std::unordered_map<uint64, InstanceScalingRow> _instanceRows; // key: mapId << 8 | difficulty
     std::unordered_map<uint32, ZoneScalingRow> _zoneRows;
     std::unordered_map<uint32, bool> _creatureRules;              // creature entry -> always / never scales
+    uint32 _dbNeverScale = 0;                                     // from `dynamic_scaling_category`
+    bool CheckWorldEligible(Creature* creature, uint8 depth, std::string* reason) const;
     std::unordered_map<uint64, uint8> _originalEntryLevels;       // access requirement levelMin backups
 
     struct PlayerBuffState

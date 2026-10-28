@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: Dynamic Scaling
+## Notes: Choose your leveling experience (mod-dynamic-scaling) and see what nearby creatures would be.
+## Author: FlyingArowana
+## Version: 1.0
+## SavedVariables: DynamicScalingDB
+## SavedVariablesPerCharacter: DynamicScalingCharDB
+DynamicScaling.lua

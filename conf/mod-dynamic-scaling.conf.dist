@@ -305,32 +305,30 @@ DynamicScaling.World.UpdateInterval = 2000
 DynamicScaling.World.RescaleCooldown = 10000
 
 #
-#    DynamicScaling.World.ScaleNpcFlags
-#        Description: Also scale creatures with NPC flags (vendors, quest givers, trainers...).
-#        Default:     0 - disabled
+#    DynamicScaling.World.UseDBOverride
+#        Description: Take the categories that never scale from `dynamic_scaling_category` (one row per category,
+#                     scale 0 never / 1 scales) instead of DynamicScaling.World.NeverScale below.
+#        Default:     0 - use NeverScale
+#                     1 - use the table
 
-DynamicScaling.World.ScaleNpcFlags = 0
-
-#
-#    DynamicScaling.World.ScaleElites
-#    DynamicScaling.World.ScaleRares
-#    DynamicScaling.World.ScaleWorldBosses
-#        Description: Which creature ranks scale in the open world.
-#        Default:     1 / 1 / 0
-
-DynamicScaling.World.ScaleElites = 1
-DynamicScaling.World.ScaleRares = 1
-DynamicScaling.World.ScaleWorldBosses = 0
+DynamicScaling.World.UseDBOverride = 0
 
 #
-#    DynamicScaling.World.ScaleGuards
-#    DynamicScaling.World.ScaleFactionNpcs
-#        Description: Also scale guards, and creatures of the Alliance or Horde (PvP NPCs, faction leaders, camp
-#                     defenders). `dynamic_scaling_creature` (scale 0 never / 1 always) beats these per entry.
-#        Default:     0 / 0
+#    DynamicScaling.World.NeverScale
+#        Description: Kinds of creature that keep their own level in the open world, separated by spaces:
+#                       NpcFlags     - vendors, quest givers, trainers, flight masters...
+#                       Civilian     - civilians
+#                       Guard        - guards
+#                       PvP          - creatures friendly to Alliance or Horde players (PvP NPCs, faction
+#                                      leaders, camp defenders, their gryphons, neutral friendly NPCs)
+#                       Unattackable - creatures that can't be attacked or selected
+#                       Elite, Rare, WorldBoss - by rank (a rare elite is both Elite and Rare)
+#                       Boss         - dungeon bosses (CREATURE_FLAG_EXTRA_DUNGEON_BOSS)
+#                     Pets and summons of a creature follow their owner. `dynamic_scaling_creature` (scale 0
+#                     never / 1 always) beats this per creature entry. .dscale info shows which ones apply.
+#        Default:     "NpcFlags Civilian Guard PvP Unattackable WorldBoss Boss"
 
-DynamicScaling.World.ScaleGuards = 0
-DynamicScaling.World.ScaleFactionNpcs = 0
+DynamicScaling.World.NeverScale = "NpcFlags Civilian Guard PvP Unattackable WorldBoss Boss"
 
 #
 #    DynamicScaling.World.Off.NoQuestCreditLevels
