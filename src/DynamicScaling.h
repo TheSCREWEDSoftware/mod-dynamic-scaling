@@ -207,6 +207,7 @@ struct DSConfig
     float worldRange = 0.0f;               // 0 = the map's visibility distance
     bool worldSilentLevelChange = true;    // re-send the creature instead of a visible level change
     bool worldScaleOnEngage = true;        // rescale to the player a creature engages
+    bool questMinLevel = true;             // lower quest level requirements where the player is scaled
     uint32 worldUpdateInterval = 2000;
     uint32 worldRescaleCooldown = 10000;
     bool worldUseDBOverride = false;       // categories from `dynamic_scaling_category` instead of NeverScale

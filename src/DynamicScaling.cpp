@@ -139,6 +139,7 @@ void DynamicScalingMgr::LoadConfig()
     c.worldRange = sConfigMgr->GetOption<float>("DynamicScaling.World.Range", 0.0f);
     c.worldSilentLevelChange = sConfigMgr->GetOption<bool>("DynamicScaling.World.SilentLevelChange", true);
     c.worldScaleOnEngage = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleOnEngage", true);
+    c.questMinLevel = sConfigMgr->GetOption<bool>("DynamicScaling.World.QuestMinLevel.Enable", true);
     c.worldUpdateInterval = sConfigMgr->GetOption<uint32>("DynamicScaling.World.UpdateInterval", 2000);
     c.worldRescaleCooldown = sConfigMgr->GetOption<uint32>("DynamicScaling.World.RescaleCooldown", 10000);
     c.worldUseDBOverride = sConfigMgr->GetOption<bool>("DynamicScaling.World.UseDBOverride", false);

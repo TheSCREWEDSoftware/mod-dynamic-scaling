@@ -554,8 +554,29 @@ public:
         PLAYERHOOK_ON_CREATURE_KILLED_BY_PET,
         PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
         PLAYERHOOK_PASSED_QUEST_KILLED_MONSTER_CREDIT,
+        PLAYERHOOK_ON_GET_QUEST_MIN_LEVEL,
         PLAYERHOOK_ON_BEFORE_FILL_QUEST_LOOT_ITEM
     }) { }
+
+    // Quests from givers in a scaled place: Simple has no level requirement, Advanced the zone's lowest level
+    void OnPlayerGetQuestMinLevel(Player const* player, Quest const* /*quest*/, uint32& minLevel) override
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.enable || !config.worldEnable || !config.questMinLevel || minLevel <= 1 ||
+            !IsWorldMap(player->GetMap()))
+            return;
+
+        ScalingMode mode = sDynamicScaling->GetPlayerMode(player);
+        ZoneSettings settings;
+        if (mode == ScalingMode::Off || !sDynamicScaling->GetZoneSettings(player->GetMapId(), player->GetZoneId(),
+            player->GetAreaId(), settings, mode))
+            return;
+
+        if (mode == ScalingMode::Simple)
+            minLevel = 1;
+        else if (settings.levelMin)
+            minLevel = std::min<uint32>(minLevel, settings.levelMin);
+    }
 
     // Scaling off: kills far below you give no quest progress
     bool OnPlayerPassedQuestKilledMonsterCredit(Player* player, Quest const* /*quest*/, uint32 /*entry*/,

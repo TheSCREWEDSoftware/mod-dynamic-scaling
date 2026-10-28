@@ -377,3 +377,14 @@ DynamicScaling.World.QuestXP.MinPct = 50
 #        Default:     1 - enabled
 
 DynamicScaling.World.QuestXP.OnlyScaledZones = 1
+
+#
+#    DynamicScaling.World.QuestMinLevel.Enable
+#        Description: Lower quest level requirements where you are scaled (you stand by the quest giver):
+#                     Simple - any level; Advanced - the zone's level_min at most; Off - unchanged.
+#                     Needs the OnPlayerGetQuestMinLevel hook in the core (AzerothCore branch
+#                     quest-min-level-hook).
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.World.QuestMinLevel.Enable = 1

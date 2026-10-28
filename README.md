@@ -20,6 +20,9 @@ Extras:
 - **Player choice**: each player picks `.scaling simple`, `.scaling advanced` or `.scaling off` for the open world;
   the server decides if they may and the default (Simple). With scaling off, creatures keep their levels, and those
   5 or more levels below you give no quest progress or quest items (`World.Off.NoQuestCreditLevels`).
+- **Quest level requirements**: by a quest giver in a scaled place, Simple players can take quests at any level and
+  Advanced players from the zone's `level_min`. Needs the `OnPlayerGetQuestMinLevel` core hook (AzerothCore branch
+  `quest-min-level-hook`); without it the module doesn't compile.
 - **No level up effect**: a creature changing level is sent again to whoever sees it, instead of "dinging"
   (`World.SilentLevelChange`).
 
