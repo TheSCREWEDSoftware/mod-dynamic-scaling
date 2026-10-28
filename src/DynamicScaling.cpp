@@ -11,6 +11,7 @@
 #include "DBCStores.h"
 #include "Group.h"
 #include "Log.h"
+#include "LootMgr.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -18,6 +19,7 @@
 #include "QuestDef.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
+#include "Tokenize.h"
 #include "UpdateData.h"
 #include "WorldPacket.h"
 
@@ -160,6 +162,9 @@ void DynamicScalingMgr::LoadConfig()
     c.questMoneyScale = sConfigMgr->GetOption<bool>("DynamicScaling.World.QuestMoney.Scale", true);
     c.lootMoneyScale = sConfigMgr->GetOption<bool>("DynamicScaling.World.LootMoney.Scale", true);
     c.lootItemsLevelsAbove = sConfigMgr->GetOption<int32>("DynamicScaling.World.LootItems.MaxLevelsAbove", 5);
+    c.lootSwap = sConfigMgr->GetOption<bool>("DynamicScaling.World.LootSwap.Enable", true);
+    c.rewardMarginDown = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Rewards.MarginDown", 3);
+    c.rewardMarginUp = sConfigMgr->GetOption<uint8>("DynamicScaling.World.Rewards.MarginUp", 3);
 
     _config = c;
     BumpSettingsVersion();
@@ -249,6 +254,8 @@ void DynamicScalingMgr::LoadTables()
             _creatureRules[fields[0].Get<uint32>()] = fields[1].Get<uint8>() != 0;
         } while (result->NextRow());
     }
+
+    LoadLevelLoot();
 
     _dbNeverScale = 0;
     if (QueryResult result = WorldDatabase.Query("SELECT `category`, `scale` FROM `dynamic_scaling_category`"))
@@ -364,6 +371,97 @@ void DynamicScalingMgr::ApplyQuestMinLevelFallback()
 
     LOG_INFO("module", "mod-dynamic-scaling: no OnPlayerGetQuestMinLevel hook in the core, lowered the level "
         "requirement of {} quests in scaled zones for everyone ({}).", changed, ModeName(mode));
+}
+
+void DynamicScalingMgr::LoadLevelLoot()
+{
+    _levelLoot.clear();
+    _levelLootByKind.clear();
+
+    // The kind comes from the comment of any row pointing at the table ("Chatter - Vanilla Greens 8-12 Level
+    // Range"), the level range from its id: 1, expansion, kind digit, two digits min, two digits max
+    QueryResult result = WorldDatabase.Query("SELECT `Reference`, `Comment` FROM `creature_loot_template` WHERE "
+        "`Reference` BETWEEN 1000000 AND 1299999 AND `Comment` LIKE '%Level Range%' UNION SELECT `Reference`, "
+        "`Comment` FROM `reference_loot_template` WHERE `Reference` BETWEEN 1000000 AND 1299999 AND `Comment` LIKE "
+        "'%Level Range%'");
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 id = fields[0].Get<uint32>();
+        if (_levelLoot.count(id) || !LootTemplates_Reference.HaveLootFor(id))
+            continue;
+
+        std::vector<std::string_view> words = Acore::Tokenize(fields[1].Get<std::string_view>(), ' ', false);
+        std::string kind;
+        bool inKind = false;
+        for (std::string_view word : words)
+        {
+            if (word == "Vanilla" || word == "TBC" || word == "WotLK" || word == "WoLK")
+            {
+                inKind = true;
+                kind.clear();
+                continue;
+            }
+            if (!inKind)
+                continue;
+            if (!word.empty() && word[0] >= '0' && word[0] <= '9')
+                break;
+            kind += (kind.empty() ? "" : " ") + std::string(word);
+        }
+        if (kind.empty())
+            continue;
+        std::transform(kind.begin(), kind.end(), kind.begin(), ::tolower);
+
+        LevelLootTable table;
+        table.kind = kind;
+        table.expansion = uint8((id / 100000) % 10);
+        table.levelMin = uint8((id / 100) % 100);
+        table.levelMax = uint8(id % 100);
+        if (!table.levelMin || table.levelMax < table.levelMin)
+            continue;
+
+        _levelLoot[id] = table;
+        _levelLootByKind[kind].push_back(id);
+    } while (result->NextRow());
+}
+
+uint32 DynamicScalingMgr::FindLevelLootSwap(uint32 referenceId, uint8 level) const
+{
+    auto itr = _levelLoot.find(referenceId);
+    if (itr == _levelLoot.end() || (level >= itr->second.levelMin && level <= itr->second.levelMax))
+        return 0;
+
+    // Same kind: a table covering the level, of the level's own expansion if there is one, centered nearest to it
+    uint8 wantedExpansion = level <= 60 ? 0 : level <= 70 ? 1 : 2;
+    uint32 best = 0;
+    int32 bestScore = 0;
+    for (uint32 id : _levelLootByKind.at(itr->second.kind))
+    {
+        LevelLootTable const& table = _levelLoot.at(id);
+        int32 outside = level < table.levelMin ? table.levelMin - level :
+            level > table.levelMax ? level - table.levelMax : 0;
+        int32 center = std::abs(int32(table.levelMin + table.levelMax) - 2 * int32(level));
+        int32 score = outside * 1000 + (table.expansion == wantedExpansion ? 0 : 100) + center;
+        if (!best || score < bestScore)
+        {
+            best = id;
+            bestScore = score;
+        }
+    }
+
+    return best == referenceId ? 0 : best;
+}
+
+bool DynamicScalingMgr::HasScaledLoot(DSCreatureInfo const* info) const
+{
+    if (!info || !info->scaledLevel || !info->originalLevel)
+        return false;
+
+    int32 diff = int32(info->scaledLevel) - int32(info->originalLevel);
+    return diff < -int32(_config.rewardMarginDown) || diff > int32(_config.rewardMarginUp);
 }
 
 float DynamicScalingMgr::MoneyForLevel(uint8 level)

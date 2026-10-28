@@ -379,9 +379,20 @@ DynamicScaling.World.QuestXP.MinPct = 50
 DynamicScaling.World.QuestXP.OnlyScaledZones = 1
 
 #
+#    DynamicScaling.World.Rewards.MarginDown
+#    DynamicScaling.World.Rewards.MarginUp
+#        Description: How far from normal still counts as normal. A creature scaled down by at most MarginDown or
+#                     up by at most MarginUp levels from its own level keeps its normal loot and gold, and a quest
+#                     up to MarginUp levels above you gives its normal XP and money.
+#        Default:     3 / 3
+
+DynamicScaling.World.Rewards.MarginDown = 3
+DynamicScaling.World.Rewards.MarginUp = 3
+
+#
 #    DynamicScaling.World.QuestXP.Cap
-#        Description: A quest above your level (taken thanks to lower requirements) gives no more XP than a quest
-#                     at your level.
+#        Description: A quest further above your level than Rewards.MarginUp (taken thanks to lower requirements)
+#                     gives the XP of a quest MarginUp levels above you.
 #        Default:     1 - enabled
 
 DynamicScaling.World.QuestXP.Cap = 1
@@ -396,7 +407,8 @@ DynamicScaling.World.QuestMoney.Scale = 1
 
 #
 #    DynamicScaling.World.LootMoney.Scale
-#        Description: A scaled creature's gold follows its scaled level, both down and up (quest_money_reward).
+#        Description: A creature scaled outside the reward margins gets gold for its scaled level, down or up
+#                     (quest_money_reward).
 #        Default:     1 - enabled
 
 DynamicScaling.World.LootMoney.Scale = 1
@@ -408,6 +420,17 @@ DynamicScaling.World.LootMoney.Scale = 1
 #        Default:     5
 
 DynamicScaling.World.LootItems.MaxLevelsAbove = 5
+
+#
+#    DynamicScaling.World.LootSwap.Enable
+#        Description: A creature scaled outside the reward margins rolls the level range loot tables of its scaled
+#                     level instead of its own: a "WotLK Greens 69-71 Level Range" reference becomes "Vanilla Greens
+#                     8-12" at level 10, "TBC Greens 64-66" at 65. Same kind (greys, whites, greens, blues,
+#                     purples, potions, patterns...), the level's own expansion first. The tables are found from
+#                     the comments of the loot rows that use them ("... Level Range").
+#        Default:     1 - enabled
+
+DynamicScaling.World.LootSwap.Enable = 1
 
 #
 #    DynamicScaling.World.QuestMinLevel.Enable

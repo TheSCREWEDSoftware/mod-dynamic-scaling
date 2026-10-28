@@ -745,7 +745,7 @@ public:
             questLevel;
         int32 effectiveLevel = std::max(questLevel, floorLevel);
         if (config.questXPCap)
-            effectiveLevel = std::min(effectiveLevel, playerLevel);
+            effectiveLevel = std::min(effectiveLevel, playerLevel + int32(config.rewardMarginUp));
         effectiveLevel = std::max(effectiveLevel, 1);
 
         // Fixed reward money (not already following the player's level) shrinks with the quest
@@ -769,7 +769,7 @@ public:
 
         if (effectiveLevel > questLevel) // the trailing floor, a share of a quest at that level
             xpValue = std::max(xpValue, uint32(xp * float(config.questXPMinPct) / 100.0f));
-        else                             // above your level: no more than a quest at your level
+        else                             // far above your level: no more than a quest MarginUp above you
             xpValue = std::min(xpValue, uint32(xp));
     }
 
@@ -794,7 +794,7 @@ public:
 
         Creature* creature = ObjectAccessor::GetCreature(*player, player->GetLootGUID());
         DSCreatureInfo* info = creature ? creature->CustomData.Get<DSCreatureInfo>(CREATURE_INFO_KEY) : nullptr;
-        if (!info || info->goldScaled || !info->scaledLevel || !info->originalLevel)
+        if (!info || info->goldScaled || !sDynamicScaling->HasScaledLoot(info))
             return;
 
         info->goldScaled = true;
@@ -899,7 +899,32 @@ class DynamicScalingGlobalScript : public GlobalScript
 {
 public:
     DynamicScalingGlobalScript() : GlobalScript("DynamicScalingGlobalScript",
-        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK, GLOBALHOOK_ON_ITEM_ROLL }) { }
+        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK, GLOBALHOOK_ON_ITEM_ROLL, GLOBALHOOK_ON_AFTER_REF_COUNT }) { }
+
+    // A level range table ("Vanilla Greens 60-63 Level Range") gives way to the same kind for the scaled level
+    void OnAfterRefCount(Player const* player, LootStoreItem* item, Loot& loot, bool /*canRate*/, uint16 lootMode,
+        uint32& maxcount, LootStore const& store) override
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.enable || !config.lootSwap || !player || !item || !maxcount ||
+            !loot.sourceWorldObjectGUID.IsCreature())
+            return;
+
+        Creature* creature = ObjectAccessor::GetCreature(*player, loot.sourceWorldObjectGUID);
+        DSCreatureInfo const* info = creature ? creature->CustomData.Get<DSCreatureInfo>(CREATURE_INFO_KEY) : nullptr;
+        if (!sDynamicScaling->HasScaledLoot(info))
+            return;
+
+        uint32 swap = sDynamicScaling->FindLevelLootSwap(uint32(std::abs(item->reference)), info->scaledLevel);
+        LootTemplate const* replacement = swap ? LootTemplates_Reference.GetLootFor(swap) : nullptr;
+        if (!replacement)
+            return;
+
+        // Done here instead of the original table, which then runs zero times
+        for (uint32 loop = 0; loop < maxcount; ++loop)
+            replacement->Process(loot, store, lootMode, player, 0, false);
+        maxcount = 0;
+    }
 
     // A creature scaled down drops no items needing far more than its scaled level
     bool OnItemRoll(Player const* player, LootStoreItem const* item, float& chance, Loot& loot,
@@ -913,7 +938,7 @@ public:
 
         Creature* creature = ObjectAccessor::GetCreature(*player, loot.sourceWorldObjectGUID);
         DSCreatureInfo const* info = creature ? creature->CustomData.Get<DSCreatureInfo>(CREATURE_INFO_KEY) : nullptr;
-        if (!info || !info->scaledLevel || info->scaledLevel >= info->originalLevel)
+        if (!sDynamicScaling->HasScaledLoot(info) || info->scaledLevel >= info->originalLevel)
             return true;
 
         ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item->itemid);

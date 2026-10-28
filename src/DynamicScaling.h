@@ -239,6 +239,9 @@ struct DSConfig
     bool questXPCap = true;                // quests above your level give the XP of a quest at your level
     bool questMoneyScale = true;           // ...and money scaled the same way
     bool lootMoneyScale = true;            // a creature's gold follows its scaled level
+    bool lootSwap = true;                  // level range loot tables follow the creature's scaled level
+    uint8 rewardMarginDown = 3;            // scaled this close to its own level (or a quest this close above
+    uint8 rewardMarginUp = 3;              // you), rewards stay normal
     int32 lootItemsLevelsAbove = 5;        // scaled down creatures drop no items needing this many levels more
                                            // than their scaled level (-1 = off)
 };
@@ -256,6 +259,12 @@ public:
     void ApplyQuestMinLevelFallback();
     // Money for a level (quest_money_reward, middle difficulty): the curve gold and quest money are scaled along
     static float MoneyForLevel(uint8 level);
+    // The "<Expansion> <Kind> <min>-<max> Level Range" reference tables (1EKLLHH): the table of the same kind for
+    // a level, or 0 when the given one already covers it
+    uint32 FindLevelLootSwap(uint32 referenceId, uint8 level) const;
+    std::size_t LevelLootCount() const { return _levelLoot.size(); }
+    // Scaled further from its own level than the reward margins: its loot and gold follow the scaled level
+    bool HasScaledLoot(DSCreatureInfo const* info) const;
     void LoadCollective();
     std::size_t CollectiveCount() const { return _collectiveBrackets.size(); }
 
@@ -329,6 +338,17 @@ private:
     std::unordered_map<uint32, ZoneScalingRow> _zoneRows;
     std::unordered_map<uint32, bool> _creatureRules;              // creature entry -> always / never scales
     std::unordered_map<uint32, uint32> _questMinLevelBackup;      // quest -> its own minimum level (fallback)
+
+    struct LevelLootTable
+    {
+        std::string kind;   // greens, blues, potions... (lowercase)
+        uint8 expansion = 0; // 0 Vanilla, 1 TBC, 2 Wrath
+        uint8 levelMin = 0;
+        uint8 levelMax = 0;
+    };
+    std::unordered_map<uint32, LevelLootTable> _levelLoot;
+    std::unordered_map<std::string, std::vector<uint32>> _levelLootByKind;
+    void LoadLevelLoot();
     uint32 _dbNeverScale = 0;                                     // from `dynamic_scaling_category`
     bool CheckWorldEligible(Creature* creature, uint8 depth, std::string* reason) const;
     std::unordered_map<uint64, uint8> _originalEntryLevels;       // access requirement levelMin backups
