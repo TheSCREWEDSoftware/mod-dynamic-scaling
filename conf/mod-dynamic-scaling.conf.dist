@@ -379,6 +379,37 @@ DynamicScaling.World.QuestXP.MinPct = 50
 DynamicScaling.World.QuestXP.OnlyScaledZones = 1
 
 #
+#    DynamicScaling.World.QuestXP.Cap
+#        Description: A quest above your level (taken thanks to lower requirements) gives no more XP than a quest
+#                     at your level.
+#        Default:     1 - enabled
+
+DynamicScaling.World.QuestXP.Cap = 1
+
+#
+#    DynamicScaling.World.QuestMoney.Scale
+#        Description: Its fixed reward money shrinks the same way, along quest_money_reward. Quests whose money
+#                     already follows your level are left alone.
+#        Default:     1 - enabled
+
+DynamicScaling.World.QuestMoney.Scale = 1
+
+#
+#    DynamicScaling.World.LootMoney.Scale
+#        Description: A scaled creature's gold follows its scaled level, both down and up (quest_money_reward).
+#        Default:     1 - enabled
+
+DynamicScaling.World.LootMoney.Scale = 1
+
+#
+#    DynamicScaling.World.LootItems.MaxLevelsAbove
+#        Description: A creature scaled down drops no items whose required level is more than this many levels
+#                     above its scaled level (quest items always drop). -1 = off.
+#        Default:     5
+
+DynamicScaling.World.LootItems.MaxLevelsAbove = 5
+
+#
 #    DynamicScaling.World.QuestMinLevel.Enable
 #        Description: Lower quest level requirements where you are scaled (you stand by the quest giver):
 #                     Simple - any level; Advanced - the zone's level_min at most; Off - unchanged.

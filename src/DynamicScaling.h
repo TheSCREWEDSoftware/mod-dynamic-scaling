@@ -143,6 +143,7 @@ struct DSCreatureInfo : public DataMap::Base
     uint8 originalLevel = 0;  // level the creature had before any scaling
     uint8 pendingLevel = 0;   // level to force on the next SelectLevel()
     uint8 scaledLevel = 0;    // 0 = not scaled
+    bool goldScaled = false;  // its loot money was scaled already (this life)
     ScalingMode worldMode = ScalingMode::Off; // open world: the mode of the player it was scaled for
     float damageMult = 1.0f;
     float healthMult = 1.0f;
@@ -233,6 +234,13 @@ struct DSConfig
     uint8 questXPTrail = 2;
     uint32 questXPMinPct = 50;
     bool questXPOnlyScaledZones = true;
+
+    // Rewards follow the level you are scaled to
+    bool questXPCap = true;                // quests above your level give the XP of a quest at your level
+    bool questMoneyScale = true;           // ...and money scaled the same way
+    bool lootMoneyScale = true;            // a creature's gold follows its scaled level
+    int32 lootItemsLevelsAbove = 5;        // scaled down creatures drop no items needing this many levels more
+                                           // than their scaled level (-1 = off)
 };
 
 class DynamicScalingMgr
@@ -246,6 +254,8 @@ public:
     // No OnPlayerGetQuestMinLevel hook: lower quest levels in memory, for everyone, the way PlayerToggle.Default
     // would (Simple: 1, Advanced: the zone's level_min). Undone on reload when it no longer applies.
     void ApplyQuestMinLevelFallback();
+    // Money for a level (quest_money_reward, middle difficulty): the curve gold and quest money are scaled along
+    static float MoneyForLevel(uint8 level);
     void LoadCollective();
     std::size_t CollectiveCount() const { return _collectiveBrackets.size(); }
 

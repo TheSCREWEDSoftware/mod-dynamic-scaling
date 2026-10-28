@@ -156,6 +156,10 @@ void DynamicScalingMgr::LoadConfig()
     c.questXPTrail = sConfigMgr->GetOption<uint8>("DynamicScaling.World.QuestXP.TrailLevels", 2);
     c.questXPMinPct = sConfigMgr->GetOption<uint32>("DynamicScaling.World.QuestXP.MinPct", 50);
     c.questXPOnlyScaledZones = sConfigMgr->GetOption<bool>("DynamicScaling.World.QuestXP.OnlyScaledZones", true);
+    c.questXPCap = sConfigMgr->GetOption<bool>("DynamicScaling.World.QuestXP.Cap", true);
+    c.questMoneyScale = sConfigMgr->GetOption<bool>("DynamicScaling.World.QuestMoney.Scale", true);
+    c.lootMoneyScale = sConfigMgr->GetOption<bool>("DynamicScaling.World.LootMoney.Scale", true);
+    c.lootItemsLevelsAbove = sConfigMgr->GetOption<int32>("DynamicScaling.World.LootItems.MaxLevelsAbove", 5);
 
     _config = c;
     BumpSettingsVersion();
@@ -360,6 +364,11 @@ void DynamicScalingMgr::ApplyQuestMinLevelFallback()
 
     LOG_INFO("module", "mod-dynamic-scaling: no OnPlayerGetQuestMinLevel hook in the core, lowered the level "
         "requirement of {} quests in scaled zones for everyone ({}).", changed, ModeName(mode));
+}
+
+float DynamicScalingMgr::MoneyForLevel(uint8 level)
+{
+    return float(std::max<uint32>(1, sObjectMgr->GetQuestMoneyReward(std::clamp<uint8>(level, 1, 80), 5)));
 }
 
 void DynamicScalingMgr::LoadCollective()

@@ -24,6 +24,8 @@ Extras:
   Advanced players from the zone's `level_min`. This uses the `OnPlayerGetQuestMinLevel` core hook when CMake finds
   it (`mod-dynamic-scaling.cmake`); without it, quests of scaled zones are lowered in memory for everyone at startup,
   following `PlayerToggle.Default`.
+- **Rewards follow the scaled level**: quests above your level give the XP of an on-level quest and less fixed
+  money, a creature's gold follows its scaled level, and a creature scaled down drops no items far above it.
 - **No level up effect**: a creature changing level is sent again to whoever sees it, instead of "dinging"
   (`World.SilentLevelChange`).
 

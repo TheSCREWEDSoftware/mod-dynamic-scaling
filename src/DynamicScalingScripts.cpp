@@ -8,11 +8,14 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "Formulas.h"
+#include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
 #include "LootMgr.h"
 #include "Map.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "QuestDef.h"
 #include "ScriptMgr.h"
@@ -20,6 +23,7 @@
 #include "World.h"
 
 #include <algorithm>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace
@@ -43,6 +47,14 @@ namespace
     {
         return map && !map->Instanceable();
     }
+
+    // Quest money to scale, set when the quest's XP is computed (just before its money is given)
+    struct QuestMoneyScale
+    {
+        float factor = 1.0f;
+        int64 time = 0;
+    };
+    std::unordered_map<ObjectGuid::LowType, QuestMoneyScale> PendingQuestMoney;
 
     // Set right before the core checks whether a quest item in a loot may be shown to a player
     thread_local bool CheckingQuestLootItem = false;
@@ -109,6 +121,7 @@ public:
         // Spawn or respawn: remember the template roll as the creature's own level
         info->originalLevel = level;
         info->scaledLevel = 0;
+        info->goldScaled = false;
 
         info->worldMode = ScalingMode::Off;
 
@@ -557,6 +570,8 @@ public:
         PLAYERHOOK_ON_CREATURE_KILL,
         PLAYERHOOK_ON_CREATURE_KILLED_BY_PET,
         PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
+        PLAYERHOOK_ON_MONEY_CHANGED,
+        PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
         PLAYERHOOK_PASSED_QUEST_KILLED_MONSTER_CREDIT,
 #if DS_HAS_QUEST_MIN_LEVEL_HOOK
         PLAYERHOOK_ON_GET_QUEST_MIN_LEVEL,
@@ -700,12 +715,11 @@ public:
 
     void OnPlayerQuestComputeXP(Player* player, Quest const* quest, uint32& xpValue) override
     {
-        DSConfig const& config = sDynamicScaling->Config();
-        if (!config.enable || !config.worldEnable || !config.questXPEnable || !config.questXPMinPct)
-            return;
+        PendingQuestMoney.erase(player->GetGUID().GetCounter());
 
-        // 0 means "no XP on purpose" (already rewarded, or a no-XP quest)
-        if (!xpValue || quest->GetQuestLevel() <= 0 || !sDynamicScaling->IsScalingFor(player))
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.enable || !config.worldEnable || quest->GetQuestLevel() <= 0 ||
+            !sDynamicScaling->IsScalingFor(player))
             return;
 
         if (config.questXPOnlyScaledZones)
@@ -724,20 +738,69 @@ public:
                 return;
         }
 
-        uint8 playerLevel = player->GetLevel();
-        int32 effectiveLevel = std::max<int32>(quest->GetQuestLevel(), int32(playerLevel) - int32(config.questXPTrail));
+        // The quest counts as if it were between (your level - trail) and your level
+        int32 playerLevel = int32(player->GetLevel());
+        int32 questLevel = quest->GetQuestLevel();
+        int32 floorLevel = (config.questXPEnable && config.questXPMinPct) ? playerLevel - int32(config.questXPTrail) :
+            questLevel;
+        int32 effectiveLevel = std::max(questLevel, floorLevel);
+        if (config.questXPCap)
+            effectiveLevel = std::min(effectiveLevel, playerLevel);
+        effectiveLevel = std::max(effectiveLevel, 1);
+
+        // Fixed reward money (not already following the player's level) shrinks with the quest
+        if (config.questMoneyScale && effectiveLevel < questLevel && quest->GetRewOrReqMoney(player->GetLevel()) > 0 &&
+            quest->GetRewOrReqMoney(player->GetLevel()) == quest->GetRewOrReqMoney(0))
+            PendingQuestMoney[player->GetGUID().GetCounter()] = {
+                DynamicScalingMgr::MoneyForLevel(uint8(effectiveLevel)) /
+                DynamicScalingMgr::MoneyForLevel(uint8(std::min(questLevel, 80))),
+                GameTime::GetGameTimeMS().count() };
+
+        // 0 means "no XP on purpose" (already rewarded, or a no-XP quest)
         QuestXPEntry const* entry = sQuestXPStore.LookupEntry(effectiveLevel);
-        if (!entry || quest->GetXPId() >= 10)
+        if (!xpValue || effectiveLevel == questLevel || !entry || quest->GetXPId() >= 10)
             return;
 
-        // Same math as Quest::XPValue(), with the quest level trailing the player
-        int32 diffFactor = std::clamp<int32>(2 * (effectiveLevel - int32(playerLevel)) + 20, 1, 10);
-        float floorXP = float(diffFactor * entry->Exp[quest->GetXPId()] / 10);
-        floorXP *= player->GetQuestRate(quest->IsDFQuest());
-        floorXP *= player->GetTotalAuraMultiplier(SPELL_AURA_MOD_XP_QUEST_PCT);
-        floorXP *= float(config.questXPMinPct) / 100.0f;
+        // Same math as Quest::XPValue(), at the effective level
+        int32 diffFactor = std::clamp<int32>(2 * (effectiveLevel - playerLevel) + 20, 1, 10);
+        float xp = float(diffFactor * entry->Exp[quest->GetXPId()] / 10);
+        xp *= player->GetQuestRate(quest->IsDFQuest());
+        xp *= player->GetTotalAuraMultiplier(SPELL_AURA_MOD_XP_QUEST_PCT);
 
-        xpValue = std::max(xpValue, uint32(floorXP));
+        if (effectiveLevel > questLevel) // the trailing floor, a share of a quest at that level
+            xpValue = std::max(xpValue, uint32(xp * float(config.questXPMinPct) / 100.0f));
+        else                             // above your level: no more than a quest at your level
+            xpValue = std::min(xpValue, uint32(xp));
+    }
+
+    // The quest's reward money comes right after its XP
+    void OnPlayerMoneyChanged(Player* player, int32& amount) override
+    {
+        auto itr = PendingQuestMoney.find(player->GetGUID().GetCounter());
+        if (itr == PendingQuestMoney.end())
+            return;
+
+        if (amount > 0 && itr->second.time == GameTime::GetGameTimeMS().count())
+            amount = std::max<int32>(1, int32(float(amount) * itr->second.factor));
+        PendingQuestMoney.erase(itr);
+    }
+
+    // A creature's gold follows its scaled level
+    void OnPlayerBeforeLootMoney(Player* player, Loot* loot) override
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.enable || !config.lootMoneyScale || !loot || !loot->gold)
+            return;
+
+        Creature* creature = ObjectAccessor::GetCreature(*player, player->GetLootGUID());
+        DSCreatureInfo* info = creature ? creature->CustomData.Get<DSCreatureInfo>(CREATURE_INFO_KEY) : nullptr;
+        if (!info || info->goldScaled || !info->scaledLevel || !info->originalLevel)
+            return;
+
+        info->goldScaled = true;
+        float factor = DynamicScalingMgr::MoneyForLevel(info->scaledLevel) /
+            DynamicScalingMgr::MoneyForLevel(info->originalLevel);
+        loot->gold = std::max<uint32>(1, uint32(float(loot->gold) * factor));
     }
 
 private:
@@ -836,7 +899,28 @@ class DynamicScalingGlobalScript : public GlobalScript
 {
 public:
     DynamicScalingGlobalScript() : GlobalScript("DynamicScalingGlobalScript",
-        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK }) { }
+        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK, GLOBALHOOK_ON_ITEM_ROLL }) { }
+
+    // A creature scaled down drops no items needing far more than its scaled level
+    bool OnItemRoll(Player const* player, LootStoreItem const* item, float& chance, Loot& loot,
+        LootStore const& store) override
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.enable || config.lootItemsLevelsAbove < 0 || !player || item->reference || item->needs_quest ||
+            (&store != &LootTemplates_Creature && &store != &LootTemplates_Reference) ||
+            !loot.sourceWorldObjectGUID.IsCreature())
+            return true;
+
+        Creature* creature = ObjectAccessor::GetCreature(*player, loot.sourceWorldObjectGUID);
+        DSCreatureInfo const* info = creature ? creature->CustomData.Get<DSCreatureInfo>(CREATURE_INFO_KEY) : nullptr;
+        if (!info || !info->scaledLevel || info->scaledLevel >= info->originalLevel)
+            return true;
+
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item->itemid);
+        if (proto && int32(proto->RequiredLevel) > int32(info->scaledLevel) + config.lootItemsLevelsAbove)
+            chance = 0.0f;
+        return true;
+    }
 
     // true = the player may not see this loot item
     bool OnAllowedForPlayerLootCheck(Player const* player, ObjectGuid source) override
