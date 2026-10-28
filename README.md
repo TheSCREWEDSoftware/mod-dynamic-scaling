@@ -21,8 +21,9 @@ Extras:
   the server decides if they may and the default (Simple). With scaling off, creatures keep their levels, and those
   5 or more levels below you give no quest progress or quest items (`World.Off.NoQuestCreditLevels`).
 - **Quest level requirements**: by a quest giver in a scaled place, Simple players can take quests at any level and
-  Advanced players from the zone's `level_min`. Needs the `OnPlayerGetQuestMinLevel` core hook (AzerothCore branch
-  `quest-min-level-hook`); without it the module doesn't compile.
+  Advanced players from the zone's `level_min`. This uses the `OnPlayerGetQuestMinLevel` core hook when CMake finds
+  it (`mod-dynamic-scaling.cmake`); without it, quests of scaled zones are lowered in memory for everyone at startup,
+  following `PlayerToggle.Default`.
 - **No level up effect**: a creature changing level is sent again to whoever sees it, instead of "dinging"
   (`World.SilentLevelChange`).
 

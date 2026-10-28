@@ -15,6 +15,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "QuestDef.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "UpdateData.h"
@@ -311,6 +312,54 @@ void DynamicScalingMgr::ApplyEntryLevelOverrides()
 
     if (count)
         LOG_INFO("module", "mod-dynamic-scaling: overrode {} instance entry level requirements.", count);
+}
+
+namespace
+{
+    // Quest::MinLevel is protected; a pointer to it taken through a derived class is the legal way in
+    struct QuestMinLevelAccess : Quest
+    {
+        static constexpr uint32 Quest::* Field = &QuestMinLevelAccess::MinLevel;
+    };
+}
+
+void DynamicScalingMgr::ApplyQuestMinLevelFallback()
+{
+    // Put every quest back first, so a reload or a config change starts from the real values
+    for (auto const& [questId, minLevel] : _questMinLevelBackup)
+        if (Quest const* quest = sObjectMgr->GetQuestTemplate(questId))
+            const_cast<Quest*>(quest)->*QuestMinLevelAccess::Field = minLevel;
+    _questMinLevelBackup.clear();
+
+    ScalingMode mode = _config.playerDefault;
+    if (DS_HAS_QUEST_MIN_LEVEL_HOOK || !_config.enable || !_config.worldEnable || !_config.questMinLevel ||
+        mode == ScalingMode::Off)
+        return;
+
+    uint32 changed = 0;
+    for (auto const& [questId, quest] : sObjectMgr->GetQuestTemplates())
+    {
+        if (quest->GetMinLevel() <= 1 || quest->GetZoneOrSort() <= 0)
+            continue;
+
+        AreaTableEntry const* zone = sAreaTableStore.LookupEntry(uint32(quest->GetZoneOrSort()));
+        MapEntry const* map = zone ? sMapStore.LookupEntry(zone->mapid) : nullptr;
+        ZoneSettings settings;
+        if (!map || map->Instanceable() || !GetZoneSettings(zone->mapid, zone->ID, 0, settings, mode))
+            continue;
+
+        uint32 minLevel = mode == ScalingMode::Simple ? 1 :
+            settings.levelMin ? std::min<uint32>(quest->GetMinLevel(), settings.levelMin) : quest->GetMinLevel();
+        if (minLevel == quest->GetMinLevel())
+            continue;
+
+        _questMinLevelBackup[questId] = quest->GetMinLevel();
+        quest->*QuestMinLevelAccess::Field = minLevel;
+        ++changed;
+    }
+
+    LOG_INFO("module", "mod-dynamic-scaling: no OnPlayerGetQuestMinLevel hook in the core, lowered the level "
+        "requirement of {} quests in scaled zones for everyone ({}).", changed, ModeName(mode));
 }
 
 void DynamicScalingMgr::LoadCollective()

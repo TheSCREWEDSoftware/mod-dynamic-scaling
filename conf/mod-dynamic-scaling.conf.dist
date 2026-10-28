@@ -382,8 +382,9 @@ DynamicScaling.World.QuestXP.OnlyScaledZones = 1
 #    DynamicScaling.World.QuestMinLevel.Enable
 #        Description: Lower quest level requirements where you are scaled (you stand by the quest giver):
 #                     Simple - any level; Advanced - the zone's level_min at most; Off - unchanged.
-#                     Needs the OnPlayerGetQuestMinLevel hook in the core (AzerothCore branch
-#                     quest-min-level-hook).
+#                     This needs the OnPlayerGetQuestMinLevel core hook, found when CMake runs. Without it, quests
+#                     of scaled zones are lowered in memory for everyone instead, the way PlayerToggle.Default
+#                     would (players with scaling off too); the database is never changed.
 #        Default:     1 - enabled
 #                     0 - disabled
 

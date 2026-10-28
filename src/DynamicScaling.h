@@ -25,6 +25,14 @@
 #include <string>
 #include <unordered_map>
 
+// Written by mod-dynamic-scaling.cmake: whether the core has the OnPlayerGetQuestMinLevel hook
+#if __has_include("DynamicScalingCoreHooks.h")
+#include "DynamicScalingCoreHooks.h"
+#endif
+#ifndef DS_HAS_QUEST_MIN_LEVEL_HOOK
+#define DS_HAS_QUEST_MIN_LEVEL_HOOK 0
+#endif
+
 class Creature;
 class Map;
 class Player;
@@ -235,6 +243,9 @@ public:
     void LoadConfig();
     void LoadTables();
     void ApplyEntryLevelOverrides();
+    // No OnPlayerGetQuestMinLevel hook: lower quest levels in memory, for everyone, the way PlayerToggle.Default
+    // would (Simple: 1, Advanced: the zone's level_min). Undone on reload when it no longer applies.
+    void ApplyQuestMinLevelFallback();
     void LoadCollective();
     std::size_t CollectiveCount() const { return _collectiveBrackets.size(); }
 
@@ -307,6 +318,7 @@ private:
     std::unordered_map<uint64, InstanceScalingRow> _instanceRows; // key: mapId << 8 | difficulty
     std::unordered_map<uint32, ZoneScalingRow> _zoneRows;
     std::unordered_map<uint32, bool> _creatureRules;              // creature entry -> always / never scales
+    std::unordered_map<uint32, uint32> _questMinLevelBackup;      // quest -> its own minimum level (fallback)
     uint32 _dbNeverScale = 0;                                     // from `dynamic_scaling_category`
     bool CheckWorldEligible(Creature* creature, uint8 depth, std::string* reason) const;
     std::unordered_map<uint64, uint8> _originalEntryLevels;       // access requirement levelMin backups

@@ -184,6 +184,7 @@ public:
         sDynamicScaling->LoadTables();
         sDynamicScaling->ApplyEntryLevelOverrides();
         sDynamicScaling->LoadCollective();
+        sDynamicScaling->ApplyQuestMinLevelFallback();
         handler->PSendSysMessage("Dynamic Scaling: reloaded {} map rows and {} zone/area rows. Creatures rescale "
             "the next time they are out of combat.", sDynamicScaling->InstanceRowCount(),
             sDynamicScaling->ZoneRowCount());
