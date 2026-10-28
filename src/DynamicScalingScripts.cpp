@@ -358,12 +358,71 @@ private:
 
 class DynamicScalingUnitScript : public UnitScript
 {
+    uint8 GroupLevel(Player* player, Creature* creature, DSConfig const& config)
+    {
+        Group* group = config.worldGroupAverage ? player->GetGroup() : nullptr;
+        if (!group)
+            return player->GetLevel();
+
+        float range = sDynamicScaling->GetWorldRange(creature->GetMap());
+        uint32 sum = 0;
+        uint32 count = 0;
+        for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
+            if (Player* member = itr->GetSource())
+                if (member->GetMap() == creature->GetMap() && !member->IsGameMaster() &&
+                    sDynamicScaling->IsScalingFor(member) && member->IsWithinDistInMap(creature, range))
+                {
+                    sum += member->GetLevel();
+                    ++count;
+                }
+
+        return count ? uint8((sum + count / 2) / count) : player->GetLevel();
+    }
+
 public:
     DynamicScalingUnitScript() : UnitScript("DynamicScalingUnitScript", true, {
         UNITHOOK_MODIFY_MELEE_DAMAGE,
         UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,
-        UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK
+        UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
+        UNITHOOK_ON_UNIT_ENTER_COMBAT
     }) { }
+
+    // Open world: the creature takes the level of whoever it engaged (their group's average) for the whole fight
+    void OnUnitEnterCombat(Unit* unit, Unit* victim) override
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        Creature* creature = unit ? unit->ToCreature() : nullptr;
+        if (!config.enable || !config.worldEnable || !config.worldScaleOnEngage || !creature || !victim ||
+            !IsWorldMap(creature->GetMap()))
+            return;
+
+        Player* player = victim->GetCharmerOrOwnerPlayerOrPlayerItself();
+        if (!player || player->IsGameMaster())
+            return;
+
+        DSCreatureInfo* info = GetInfo(creature);
+        if (!info->originalLevel)
+            info->originalLevel = creature->GetLevel();
+
+        ScalingMode mode = sDynamicScaling->GetPlayerMode(player);
+        ZoneSettings settings;
+        uint8 target = info->originalLevel;
+        if (mode != ScalingMode::Off && sDynamicScaling->IsCreatureEligible(creature, true) &&
+            sDynamicScaling->GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(),
+            settings, mode))
+            target = sDynamicScaling->ComputeWorldLevel(creature, settings, GroupLevel(player, creature, config),
+                info->originalLevel);
+        else
+            mode = ScalingMode::Off;
+
+        if (target == creature->GetLevel())
+            return;
+
+        float healthPct = creature->GetHealthPct();
+        info->worldMode = mode;
+        sDynamicScaling->RescaleCreature(creature, target, false);
+        creature->SetHealth(std::max<uint32>(1, creature->CountPctFromMaxHealth(healthPct)));
+    }
 
     void ModifyMeleeDamage(Unit* /*target*/, Unit* attacker, uint32& damage) override
     {

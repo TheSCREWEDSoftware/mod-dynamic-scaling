@@ -192,6 +192,7 @@ struct DSConfig
     bool worldGroupAverage = true;
     float worldRange = 0.0f;               // 0 = the map's visibility distance
     bool worldSilentLevelChange = true;    // re-send the creature instead of a visible level change
+    bool worldScaleOnEngage = true;        // rescale to the player a creature engages
     uint32 worldUpdateInterval = 2000;
     uint32 worldRescaleCooldown = 10000;
     bool worldScaleNpcFlags = false;
@@ -251,7 +252,7 @@ public:
     uint8 ComputeWorldLevel(Creature* creature, ZoneSettings const& settings, uint8 referenceLevel,
         uint8 originalLevel) const;
     void ComputeMultipliers(Creature* creature, DSCreatureInfo* info) const;
-    void RescaleCreature(Creature* creature, uint8 level) const;
+    void RescaleCreature(Creature* creature, uint8 level, bool allowSilent = true) const;
     void ApplyArmor(Creature* creature, DSCreatureInfo const* info) const;
     void ResetCreature(Creature* creature) const;
     bool IsTargetedByViewer(Creature* creature) const;

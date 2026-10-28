@@ -138,6 +138,7 @@ void DynamicScalingMgr::LoadConfig()
     c.worldGroupAverage = sConfigMgr->GetOption<bool>("DynamicScaling.World.GroupAverage", true);
     c.worldRange = sConfigMgr->GetOption<float>("DynamicScaling.World.Range", 0.0f);
     c.worldSilentLevelChange = sConfigMgr->GetOption<bool>("DynamicScaling.World.SilentLevelChange", true);
+    c.worldScaleOnEngage = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleOnEngage", true);
     c.worldUpdateInterval = sConfigMgr->GetOption<uint32>("DynamicScaling.World.UpdateInterval", 2000);
     c.worldRescaleCooldown = sConfigMgr->GetOption<uint32>("DynamicScaling.World.RescaleCooldown", 10000);
     c.worldScaleNpcFlags = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleNpcFlags", false);
@@ -686,7 +687,7 @@ void DynamicScalingMgr::ApplyArmor(Creature* creature, DSCreatureInfo const* inf
     creature->SetStatFlatModifier(UNIT_MOD_ARMOR, BASE_VALUE, armor);
 }
 
-void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level) const
+void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level, bool allowSilent) const
 {
     DSCreatureInfo* info = creature->CustomData.GetDefault<DSCreatureInfo>(CREATURE_INFO_KEY);
 
@@ -695,7 +696,8 @@ void DynamicScalingMgr::RescaleCreature(Creature* creature, uint8 level) const
     info->pendingLevel = level;
 
     // Someone with it selected would lose the target when it is sent again: change it the normal way then
-    bool silent = _config.worldSilentLevelChange && level != creature->GetLevel() && !IsTargetedByViewer(creature);
+    bool silent = allowSilent && _config.worldSilentLevelChange && level != creature->GetLevel() &&
+        !IsTargetedByViewer(creature);
     if (!silent)
     {
         creature->SelectLevel();

@@ -282,6 +282,15 @@ DynamicScaling.World.Range = 0
 DynamicScaling.World.SilentLevelChange = 1
 
 #
+#    DynamicScaling.World.ScaleOnEngage
+#        Description: When a creature engages, it takes the level of the player it engaged (their group's average
+#                     nearby) for the whole fight; a player with scaling off fights its own level.
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.World.ScaleOnEngage = 1
+
+#
 #    DynamicScaling.World.UpdateInterval
 #        Description: Milliseconds between checks per creature. Creatures only change while out of combat.
 #        Default:     2000
