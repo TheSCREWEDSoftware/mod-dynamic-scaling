@@ -4,6 +4,9 @@
 -- Everything else the module changes (creature levels and stats, instance entry levels, respawn points) is changed
 -- in memory only and is back to the core's values as soon as the module is gone.
 
+-- The custom spell IDs, if you changed them in the config
+SET @SimpleBuffSpellID := 150100; -- DynamicScaling.Instance.Simple.SpellId
+
 -- The module's tables
 DROP TABLE IF EXISTS `dynamic_scaling_map`;
 DROP TABLE IF EXISTS `dynamic_scaling_zone`;
@@ -11,7 +14,7 @@ DROP TABLE IF EXISTS `dynamic_scaling_creature`;
 DROP TABLE IF EXISTS `dynamic_scaling_category`;
 
 -- The Simple mode buff (DynamicScaling.Simple.SpellId; change the id if you changed it in the config)
-DELETE FROM `spell_dbc` WHERE `ID` = 150100;
+DELETE FROM `spell_dbc` WHERE `ID` = @SimpleBuffSpellID;
 
 -- Forget the applied files, so a later reinstall runs them again
 DELETE FROM `updates` WHERE `state` = 'MODULE' AND `name` IN ('01_dynamic_scaling_tables.sql',

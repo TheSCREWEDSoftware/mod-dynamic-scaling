@@ -1,6 +1,10 @@
 -- mod-dynamic-scaling: settings tables.
 -- Lookup order: area row, then zone row (`dynamic_scaling_zone`), then map row (`dynamic_scaling_map`),
 -- then the config defaults. Instances use map rows (one per difficulty, or 255 for every difficulty).
+
+-- The Simple mode buff spell. Change it (and DynamicScaling.Instance.Simple.SpellId) if 150100 is taken.
+SET @SimpleBuffSpellID := 150100;
+
 CREATE TABLE IF NOT EXISTS `dynamic_scaling_map` (
     `map_id` INT UNSIGNED NOT NULL COMMENT 'Map.dbc ID: an instance, or a continent (0, 1, 530, 571) for open world',
     `difficulty` TINYINT UNSIGNED NOT NULL DEFAULT 255 COMMENT '0-3, 255 = every difficulty',
@@ -41,7 +45,6 @@ CREATE TABLE IF NOT EXISTS `dynamic_scaling_zone` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='mod-dynamic-scaling: per zone / area settings';
 
 -- Simple mode stat buff: SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE (137) on all stats, amount set by the module.
--- Change DynamicScaling.Instance.Simple.SpellId and this ID together if 150100 is taken.
-DELETE FROM `spell_dbc` WHERE `ID` = 150100;
+DELETE FROM `spell_dbc` WHERE `ID` = @SimpleBuffSpellID;
 INSERT INTO `spell_dbc` (`ID`, `Attributes`, `Effect_1`, `EffectAura_1`, `EffectMiscValue_1`, `Name_Lang_enUS`, `ProcChance`, `RangeIndex`, `EquippedItemClass`) VALUES
-(150100, 448, 6, 137, -1, 'Dynamic Scaling - Stats', 101, 1, -1);
+(@SimpleBuffSpellID, 448, 6, 137, -1, 'Dynamic Scaling - Stats', 101, 1, -1);
