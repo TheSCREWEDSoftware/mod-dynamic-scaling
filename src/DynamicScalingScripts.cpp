@@ -255,13 +255,28 @@ private:
             }
         }
 
-        if (!nearest)
-            return;
-
         uint32 zoneId = 0;
         uint32 areaId = 0;
         map->GetZoneAndAreaId(creature->GetPhaseMask(), zoneId, areaId, creature->GetPositionX(),
             creature->GetPositionY(), creature->GetPositionZ());
+
+        if (!nearest)
+        {
+            // Collective world scaling: nobody around yet, so at least inside the zone's bracket (a kept level 18
+            // creature in a 1-10 zone doesn't show up as 18 before it rescales to whoever comes)
+            uint8 levelMin = 0;
+            uint8 levelMax = 0;
+            if (config.collectiveWorld && sDynamicScaling->GetCollectiveZone(zoneId, levelMin, levelMax))
+            {
+                uint8 target = std::clamp<uint8>(level, levelMin, levelMax);
+                if (target != level)
+                {
+                    level = target;
+                    info->scaledLevel = target;
+                }
+            }
+            return;
+        }
 
         ScalingMode mode = sDynamicScaling->GetPlayerMode(nearest);
         ZoneSettings settings;
@@ -334,8 +349,22 @@ private:
         uint8 reference = GetWorldReferenceLevel(creature, config, onlyOptedOut, mode);
         if (!reference)
         {
-            // Only players who turned scaling off are watching: show them the real level
-            if (onlyOptedOut && info->scaledLevel)
+            // Only players who turned scaling off are watching: show them the real level (with collective world
+            // scaling, the real level squeezed into the zone's bracket, as the randomizer would have it)
+            uint8 levelMin = 0;
+            uint8 levelMax = 0;
+            if (onlyOptedOut && config.collectiveWorld &&
+                sDynamicScaling->GetCollectiveZone(creature->GetZoneId(), levelMin, levelMax))
+            {
+                uint8 target = std::clamp<uint8>(info->originalLevel, levelMin, levelMax);
+                if (target != creature->GetLevel())
+                {
+                    info->worldMode = ScalingMode::Off;
+                    sDynamicScaling->RescaleCreature(creature, target);
+                    info->cooldown = int32(config.worldRescaleCooldown);
+                }
+            }
+            else if (onlyOptedOut && info->scaledLevel)
             {
                 sDynamicScaling->ResetCreature(creature);
                 info->worldMode = ScalingMode::Off;

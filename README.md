@@ -50,7 +50,10 @@ config, and they split the work:
   startup and stops shifting dungeon levels itself,
 - this module reads it at startup and scales those dungeons in Simple mode, to the group's level but inside that
   bracket: Ragefire Chasm in a 31-40 bracket scales between 31 and 40,
-- open world scaling here is off, since the randomizer sets zone levels.
+- the open world scales inside each zone's bracket (`DynamicScaling.Collective.WorldScaling`, on by default): creatures
+  follow each player's level and `.scaling` choice but never leave the bracket the randomizer gave the zone, and the
+  randomizer stops remapping open world levels. With it off, open world scaling here is off and the randomizer sets
+  zone levels.
 
 Turn either switch off and the two modules ignore each other.
 

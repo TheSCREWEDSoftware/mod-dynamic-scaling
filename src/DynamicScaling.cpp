@@ -97,6 +97,7 @@ void DynamicScalingMgr::LoadConfig()
         sConfigMgr->GetOption<bool>("Randomizer.Enable", false, false) &&
         sConfigMgr->GetOption<bool>("Randomizer.World.Enable", false, false) &&
         sConfigMgr->GetOption<bool>("Randomizer.Collective.DynamicScaling", false, false);
+    c.collectiveWorld = c.collective && sConfigMgr->GetOption<bool>("DynamicScaling.Collective.WorldScaling", true);
 
     c.instanceEnable = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Enable", true);
     c.instanceDefaultMode = ToMode(sConfigMgr->GetOption<uint32>("DynamicScaling.Instance.DefaultMode", 1),
@@ -544,6 +545,7 @@ float DynamicScalingMgr::MoneyForLevel(uint8 level)
 void DynamicScalingMgr::LoadCollective()
 {
     _collectiveBrackets.clear();
+    _collectiveZones.clear();
     if (!_config.collective)
         return;
 
@@ -558,8 +560,23 @@ void DynamicScalingMgr::LoadCollective()
         } while (result->NextRow());
     }
 
-    LOG_INFO("module", "mod-dynamic-scaling: collective with mod-world-randomizer, {} dungeons scale inside their "
-        "bracket; open world scaling is left to the randomizer.", _collectiveBrackets.size());
+    if (_config.collectiveWorld)
+        if (QueryResult result = WorldDatabase.Query("SELECT `zone_id`, `level_min`, `level_max` "
+            "FROM `world_randomizer_zone_bracket`"))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+                _collectiveZones[fields[0].Get<uint32>()] = { fields[1].Get<uint8>(), fields[2].Get<uint8>() };
+            } while (result->NextRow());
+        }
+
+    if (_config.collectiveWorld)
+        LOG_INFO("module", "mod-dynamic-scaling: collective with mod-world-randomizer, {} dungeons and {} zones scale "
+            "inside their bracket.", _collectiveBrackets.size(), _collectiveZones.size());
+    else
+        LOG_INFO("module", "mod-dynamic-scaling: collective with mod-world-randomizer, {} dungeons scale inside their "
+            "bracket; open world scaling is left to the randomizer.", _collectiveBrackets.size());
     BumpSettingsVersion();
 }
 
@@ -672,9 +689,25 @@ bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 area
     if (playerMode != ScalingMode::Simple && playerMode != ScalingMode::Advanced)
         return false;
 
-    // Collective with the randomizer: it owns open world levels
-    if (!_config.enable || !_config.worldEnable || _config.collective)
+    if (!_config.enable || !_config.worldEnable)
         return false;
+
+    // Collective with the randomizer: each zone scales inside the bracket it was given (Simple and Advanced alike),
+    // or, without Collective.WorldScaling, the randomizer owns open world levels
+    if (_config.collective)
+    {
+        uint8 levelMin = 0;
+        uint8 levelMax = 0;
+        if (!_config.collectiveWorld || !GetCollectiveZone(zoneId, levelMin, levelMax))
+            return false;
+
+        out.mode = playerMode;
+        out.xpMinPct = _config.xpMinPct;
+        out.levelMin = levelMin;
+        out.levelMax = levelMax;
+        out.trailLevels = playerMode == ScalingMode::Simple ? _config.worldSimpleTrail : _config.worldTrailLevels;
+        return true;
+    }
 
     // The most specific row wins: area, then zone, then the whole map
     ZoneScalingRow const* row = areaId && areaId != zoneId ? FindZoneRow(areaId) : nullptr;
@@ -729,6 +762,17 @@ bool DynamicScalingMgr::GetZoneSettings(uint32 mapId, uint32 zoneId, uint32 area
         out.damageMult = row->damageMult;
     }
 
+    return true;
+}
+
+bool DynamicScalingMgr::GetCollectiveZone(uint32 zoneId, uint8& levelMin, uint8& levelMax) const
+{
+    auto itr = _collectiveZones.find(zoneId);
+    if (itr == _collectiveZones.end())
+        return false;
+
+    levelMin = itr->second.first;
+    levelMax = itr->second.second;
     return true;
 }
 

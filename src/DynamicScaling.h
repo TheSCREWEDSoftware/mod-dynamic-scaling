@@ -176,6 +176,8 @@ struct DSConfig
     // in, and the open world is left to the randomizer. Needs both modules' collective switches on.
     bool collectiveSetting = true;
     bool collective = false;
+    // Collective.WorldScaling: the open world scales too, inside the bracket the randomizer gave each zone
+    bool collectiveWorld = false;
 
     // Players pick their own open world scaling (.scaling simple / advanced / off)
     bool playerToggle = true;
@@ -289,6 +291,8 @@ public:
     bool HasScaledLoot(DSCreatureInfo const* info) const;
     void LoadCollective();
     std::size_t CollectiveCount() const { return _collectiveBrackets.size(); }
+    // The randomizer bracket of an open world zone (collective world scaling); false if it has none
+    bool GetCollectiveZone(uint32 zoneId, uint8& levelMin, uint8& levelMax) const;
 
     DSConfig const& Config() const { return _config; }
     uint32 GetSettingsVersion() const { return _settingsVersion; }
@@ -392,6 +396,7 @@ private:
     std::unordered_map<ObjectGuid::LowType, EntryPosition> _entryPositions;
     std::unordered_map<ObjectGuid::LowType, ScalingMode> _playerChoices;
     std::unordered_map<uint32, std::pair<uint8, uint8>> _collectiveBrackets; // dungeon map -> randomizer bracket
+    std::unordered_map<uint32, std::pair<uint8, uint8>> _collectiveZones;    // zone -> randomizer bracket
     std::unordered_map<ObjectGuid::LowType, int32> _lastAnnounced; // stat percent last told to the player
 };
 

@@ -63,12 +63,26 @@ DynamicScaling.PlayerToggle.Default = 1
 #                     Randomizer.Collective.DynamicScaling is on too. Then:
 #                       - dungeons and raids use Simple mode, with creature levels scaled to the group inside the
 #                         bracket their entrance zone landed in (RFC in a 31-40 bracket scales between 31 and 40),
-#                       - open world scaling is off, because the randomizer sets zone levels itself.
+#                       - the open world scales inside each zone's bracket (Collective.WorldScaling below), or
+#                         open world scaling is off and the randomizer sets zone levels itself.
 #                     Dungeons whose entrance is not in a shuffled zone keep the normal settings.
 #        Default:     1 - enabled
 #                     0 - disabled (the two modules ignore each other)
 
 DynamicScaling.Collective.WorldRandomizer = 1
+
+#
+#    DynamicScaling.Collective.WorldScaling
+#        Description: With the collective on: scale the open world too, but inside the bracket the randomizer gave
+#                     each zone. Creatures follow your level and .scaling choice (Simple trails you by
+#                     World.SimpleTrailLevels, Advanced by World.TrailLevels) and never leave the zone's bracket:
+#                     a level 1 player in Bloodmyst Isle (1-10) meets level 1 creatures, a level 8 one level 5-6.
+#                     Players with scaling off see the creatures' own levels squeezed into the bracket. Rewards
+#                     and the loot swap follow the scaled levels. Needs DynamicScaling.World.Enable.
+#        Default:     1 - enabled
+#                     0 - disabled (the randomizer sets open world levels, and this module leaves them alone)
+
+DynamicScaling.Collective.WorldScaling = 1
 
 ########################################
 # Instances (dungeons and raids)
