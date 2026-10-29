@@ -124,12 +124,12 @@ addon whispers (prefix `DSCALE`, see `src/DynamicScalingAddon.cpp`).
 - In a zone row, `mode` 0 or a `0/0` window means "never scaled"; any other row is scaled the way the player chose.
   Simple ignores the window; Advanced uses it and the row's other fields.
 
-## Uninstall
+## Drop / remove / uninstall
 
-`data/sql/uninstall/` has a `world.sql` and a `characters.sql` that take the module back out: they drop its tables,
-remove its custom spells (and any saved auras of them) and its rows in `updates`, so a later reinstall starts clean.
-Creature levels and stats, instance entry levels and respawn points are only changed in memory, so they are the core's
-again once the module is gone.
+`data/sql/drop_remove_uninstall/` has a `world.sql` and a `characters.sql` that take the module back out: they drop its
+tables, remove its custom spells (and any saved auras of them) and its rows in `updates`, so a later reinstall starts
+clean. Creature levels and stats, instance entry levels and respawn points are only changed in memory, so they are the
+core's again once the module is gone.
 
 1. Take the module out of the build (move it out of `modules/`, or add it to `-DDISABLED_AC_MODULES`) and rebuild.
    With the module still built, the DB updater installs everything again on the next start.
