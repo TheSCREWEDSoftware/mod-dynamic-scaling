@@ -125,6 +125,13 @@ void DynamicScalingMgr::LoadConfig()
     c.advancedManaFloor = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.ManaFloor", 0.5f);
     c.advancedHealthMult = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.HealthMult", 1.0f);
     c.advancedDamageMult = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.DamageMult", 1.0f);
+    c.advancedCurve = sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.Advanced.Curve", 1);
+    c.advancedInflectionPoint = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.InflectionPoint", 0.5f);
+    c.advancedCurveCeiling = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.CurveCeiling", 1.0f);
+    c.advancedBossInflection =
+        sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.BossInflectionModifier", 1.0f);
+    c.advancedBossMult = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.BossMult", 1.0f);
+    c.lfgEntryLevel = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.LFG.EntryLevel", true);
 
     c.respawnEnable = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Respawn.Enable", true);
     c.respawnRaids = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Respawn.Raids", true);
@@ -484,6 +491,33 @@ std::string DynamicScalingMgr::LevelLootName(uint32 referenceId) const
 
     return Acore::StringFormat("{} {} {}-{}", EXPANSIONS[std::min<uint8>(itr->second.expansion, 2)],
         itr->second.kind, itr->second.levelMin, itr->second.levelMax);
+}
+
+float DynamicScalingMgr::AdvancedMultiplier(float floor, uint32 players, uint8 expected, bool boss) const
+{
+    float max = float(std::max<uint8>(1, expected));
+    float count = std::min(float(players), max);
+    if (!_config.advancedCurve)
+        return Lerp(floor, count / max); // floor + (1 - floor) * players / expected
+
+    // AutoBalance's inflection curve (its Curve Worksheet, columns D and F): a tanh S-curve from CurveFloor to
+    // CurveCeiling, steepest at InflectionPoint * expected players, adjusted so a full group gets CurveCeiling
+    float ceiling = std::max(_config.advancedCurveCeiling, 0.0f);
+    floor = std::clamp(floor, 0.0f, ceiling);
+    float inflection = _config.advancedInflectionPoint * (boss ? _config.advancedBossInflection : 1.0f);
+    if (count >= max)
+        return ceiling;
+
+    auto shape = [&](float x) { return (std::tanh((x - max * inflection) / (max / 5.0f * 1.5f)) + 1.0f) / 2.0f; };
+    float atFull = shape(max) * (ceiling - floor) + floor;
+    float adjust = atFull > 0.0f ? ceiling / atFull : 1.0f;
+    return shape(count) * (ceiling * adjust - floor) + floor;
+}
+
+uint8 DynamicScalingMgr::GetEntryLevel(uint32 mapId, uint8 difficulty) const
+{
+    InstanceScalingRow const* row = FindInstanceRow(mapId, difficulty);
+    return row ? row->entryLevelMin : 0;
 }
 
 float DynamicScalingMgr::MoneyForLevel(uint8 level)
@@ -990,11 +1024,15 @@ void DynamicScalingMgr::ComputeMultipliers(Creature* creature, DSCreatureInfo* i
 
         DSMapInfo const* mapInfo = GetMapInfo(map);
         uint32 players = std::max<uint32>(1, mapInfo ? mapInfo->playerCount : 1);
-        float ratio = float(players) / float(std::max<uint8>(1, settings.expectedPlayers));
+        bool boss = creature->IsDungeonBoss() || creature->isWorldBoss();
+        float bossMult = boss ? _config.advancedBossMult : 1.0f;
 
-        info->healthMult = Lerp(_config.advancedHealthFloor, ratio) * settings.healthMult * _config.advancedHealthMult;
-        info->damageMult = Lerp(_config.advancedDamageFloor, ratio) * settings.damageMult * _config.advancedDamageMult;
-        info->manaMult = Lerp(_config.advancedManaFloor, ratio) * settings.manaMult;
+        info->healthMult = AdvancedMultiplier(_config.advancedHealthFloor, players, settings.expectedPlayers, boss) *
+            settings.healthMult * _config.advancedHealthMult * bossMult;
+        info->damageMult = AdvancedMultiplier(_config.advancedDamageFloor, players, settings.expectedPlayers, boss) *
+            settings.damageMult * _config.advancedDamageMult * bossMult;
+        info->manaMult = AdvancedMultiplier(_config.advancedManaFloor, players, settings.expectedPlayers, boss) *
+            settings.manaMult;
         info->armorMult = settings.armorMult;
         return;
     }

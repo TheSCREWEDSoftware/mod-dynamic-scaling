@@ -12,6 +12,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
+#include "LFGMgr.h"
 #include "LootMgr.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
@@ -908,7 +909,22 @@ class DynamicScalingGlobalScript : public GlobalScript
 {
 public:
     DynamicScalingGlobalScript() : GlobalScript("DynamicScalingGlobalScript",
-        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK, GLOBALHOOK_ON_ITEM_ROLL, GLOBALHOOK_ON_AFTER_REF_COUNT }) { }
+        { GLOBALHOOK_ON_ALLOWED_FOR_PLAYER_LOOT_CHECK, GLOBALHOOK_ON_ITEM_ROLL, GLOBALHOOK_ON_AFTER_REF_COUNT,
+          GLOBALHOOK_ON_INITIALIZE_LOCKED_DUNGEONS }) { }
+
+    // Dungeon Finder: a dungeon locked only by its level opens from the map row's entry_level_min
+    void OnInitializeLockedDungeons(Player* player, uint8& level, uint32& lockData,
+        lfg::LFGDungeonData const* dungeon) override
+    {
+        DSConfig const& config = sDynamicScaling->Config();
+        if (!config.enable || !config.instanceEnable || !config.lfgEntryLevel || !player || !dungeon ||
+            lockData != lfg::LFG_LOCKSTATUS_TOO_LOW_LEVEL)
+            return;
+
+        uint8 entryLevel = sDynamicScaling->GetEntryLevel(dungeon->map, uint8(dungeon->difficulty));
+        if (entryLevel && level >= entryLevel)
+            lockData = 0;
+    }
 
     // A level range table ("Vanilla Greens 60-63 Level Range") gives way to the same kind for the scaled level
     void OnAfterRefCount(Player const* player, LootStoreItem* item, Loot& loot, bool /*canRate*/, uint16 lootMode,

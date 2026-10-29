@@ -201,6 +201,12 @@ struct DSConfig
     float advancedManaFloor = 0.5f;
     float advancedHealthMult = 1.0f;
     float advancedDamageMult = 1.0f;
+    uint8 advancedCurve = 1;               // 0 straight line, 1 AutoBalance inflection curve
+    float advancedInflectionPoint = 0.5f;
+    float advancedCurveCeiling = 1.0f;
+    float advancedBossInflection = 1.0f;   // the boss curve's inflection point, as a multiple of the normal one
+    float advancedBossMult = 1.0f;         // bosses on top of everything else
+    bool lfgEntryLevel = true;             // entry_level_min also unlocks the dungeon in the Dungeon Finder
 
     bool respawnEnable = true;
     bool respawnRaids = true;
@@ -263,6 +269,10 @@ public:
     void ApplyQuestMinLevelFallback();
     // Money for a level (quest_money_reward, middle difficulty): the curve gold and quest money are scaled along
     static float MoneyForLevel(uint8 level);
+    // Advanced instance multiplier for this many players (AutoBalance's curve, or a straight line)
+    float AdvancedMultiplier(float floor, uint32 players, uint8 expected, bool boss) const;
+    // The `dynamic_scaling_map` entry level for a dungeon and difficulty (0 = none)
+    uint8 GetEntryLevel(uint32 mapId, uint8 difficulty) const;
     // The "<Expansion> <Kind> <min>-<max> Level Range" reference tables (1EKLLHH): the table of the same kind for
     // a level, or 0 when the given one already covers it
     uint32 FindLevelLootSwap(uint32 referenceId, uint8 level) const;

@@ -161,8 +161,9 @@ DynamicScaling.Instance.Simple.XPPenalty = 0
 #    DynamicScaling.Instance.Advanced.HealthFloor
 #    DynamicScaling.Instance.Advanced.DamageFloor
 #    DynamicScaling.Instance.Advanced.ManaFloor
-#        Description: Creature health / damage / mana with a single player, as a fraction of normal.
-#                     It rises in a straight line to 1.0 at the expected player count.
+#        Description: The curve floor of creature health / damage / mana (AutoBalance's CurveFloor), as a
+#                     fraction of normal. tools/DynamicScaling_Curve_Worksheet.xlsx shows the result for every
+#                     group size.
 #        Default:     0.3 / 0.3 / 0.5
 
 DynamicScaling.Instance.Advanced.HealthFloor = 0.3
@@ -177,6 +178,51 @@ DynamicScaling.Instance.Advanced.ManaFloor = 0.5
 
 DynamicScaling.Instance.Advanced.HealthMult = 1.0
 DynamicScaling.Instance.Advanced.DamageMult = 1.0
+
+#
+#    DynamicScaling.Instance.Advanced.Curve
+#        Description: How the multipliers grow from the floor to a full group.
+#                     1 - AutoBalance's inflection curve: a tanh S-curve from the floor to CurveCeiling, steepest at
+#                         InflectionPoint x expected players, adjusted so a full group gets exactly CurveCeiling.
+#                         With floor 0, InflectionPoint 0.5 and 5 players: 0.12 / 0.35 / 0.68 / 0.91 / 1.00.
+#                     0 - a straight line: floor + (1 - floor) x players / expected players.
+#        Default:     1
+
+DynamicScaling.Instance.Advanced.Curve = 1
+
+#
+#    DynamicScaling.Instance.Advanced.InflectionPoint
+#        Description: Where the curve is steepest, as a share of the expected players. Lower is easier on small
+#                     groups sooner (0.2: two players of five already get 0.80), higher keeps them easy longer.
+#        Default:     0.5
+
+DynamicScaling.Instance.Advanced.InflectionPoint = 0.5
+
+#
+#    DynamicScaling.Instance.Advanced.CurveCeiling
+#        Description: The multiplier a full group gets (curve only). Below 1.0 makes every group size easier.
+#        Default:     1.0
+
+DynamicScaling.Instance.Advanced.CurveCeiling = 1.0
+
+#
+#    DynamicScaling.Instance.Advanced.BossInflectionModifier
+#    DynamicScaling.Instance.Advanced.BossMult
+#        Description: Bosses (dungeon bosses and world bosses) use InflectionPoint x BossInflectionModifier, and
+#                     their health and damage are multiplied by BossMult on top.
+#        Default:     1.0 / 1.0
+
+DynamicScaling.Instance.Advanced.BossInflectionModifier = 1.0
+DynamicScaling.Instance.Advanced.BossMult = 1.0
+
+#
+#    DynamicScaling.Instance.LFG.EntryLevel
+#        Description: A map row's entry_level_min also opens the dungeon in the Dungeon Finder: a dungeon locked
+#                     only because you are too low for it can be queued from entry_level_min.
+#        Default:     1 - enabled
+#                     0 - disabled (the Dungeon Finder keeps LFGDungeons.dbc's levels)
+
+DynamicScaling.Instance.LFG.EntryLevel = 1
 
 #
 #    DynamicScaling.Instance.Respawn.Enable

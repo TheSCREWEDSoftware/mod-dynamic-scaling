@@ -93,6 +93,12 @@ The SQL in `data/sql` is applied by the core's DB updater (or `dbimport`) like a
 
 Config changes need `.reload config`.
 
+## Curve worksheet
+
+`tools/DynamicScaling_Curve_Worksheet.xlsx` (like AutoBalance's Curve Worksheet): change the yellow cells to see
+the Advanced instance multipliers for every group size (curve or straight line, bosses too), the Simple buff, and
+open world creature levels and rewards for every player level. It uses the same math as the module.
+
 ## The addon
 
 `addon/DynamicScaling` is a client addon (3.3.5): copy it to `Interface/AddOns`. On login it asks which leveling
@@ -131,8 +137,9 @@ again once the module is gone.
 
 ## Known limits
 
-- The Dungeon Finder (LFG) has its own level checks from `LFGDungeons.dbc`; `entry_level_min` only changes
-  walking in through the entrance.
+- Scaling works however you enter (walking in or the Dungeon Finder). `entry_level_min` also unlocks a dungeon in
+  the Dungeon Finder (`Instance.LFG.EntryLevel`), but the random dungeon pool still uses `LFGDungeons.dbc`'s level
+  ranges, and the client may still list a dungeon as too high until the server's unlock reaches it.
 - `entry_level_min` edits the access requirements the core loaded. A core `.reload` of those requirements
   undoes it until `.dscale reload`.
 - Gray kill XP goes to the killer and nearby group members only, split evenly.
