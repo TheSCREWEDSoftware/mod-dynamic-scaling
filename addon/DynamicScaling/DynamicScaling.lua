@@ -1,6 +1,7 @@
 -- Dynamic Scaling (WoW 3.3.5)
 -- Talks to mod-dynamic-scaling with addon whispers to yourself (prefix DSCALE).
--- On login it asks which leveling experience you want (No Scaling, Simple or Advanced).
+-- On login it asks which leveling experience you want (No Scaling, Simple or Advanced). If the server doesn't
+-- answer within 10 seconds of logging in, the addon turns itself off until the next login.
 -- /dscale          show or hide the window (your choice, and the creatures around you in each mode)
 -- /dscale choose   show the choice again
 
@@ -24,8 +25,11 @@ local near = {}          -- { entry, name, own, simple, advanced, now, count }
 local incoming = {}
 local newCharacter = false
 local askPending = false
+local available = nil    -- nil: still asking the server, true: the module answered, false: it didn't
+local replyTimeout       -- seconds left for the first answer
 
 local function Send(body)
+    if available == false then return end
     SendAddonMessage(PREFIX, body, "WHISPER", UnitName("player"))
 end
 
@@ -301,9 +305,13 @@ local function ShouldAsk()
     return true
 end
 
+local Disable
+
 local function OnMessage(message)
     local parts = Split(message)
     local kind = parts[1]
+    if available == false then return end
+    available = true
     if kind == "M" then
         state.mode = tonumber(parts[2])
         state.canChoose = parts[3] == "1"
@@ -335,11 +343,21 @@ local function OnMessage(message)
         if frame:IsShown() then UpdateFrame() end
     elseif kind == "X" then
         Print(parts[2] or "")
-        if parts[2] and parts[2]:find("off on this server") then askPending = false end
+        if parts[2] and parts[2]:find("off on this server") then Disable() end
     end
 end
 
 local events = CreateFrame("Frame")
+
+-- No module on this server (or it's off): stay quiet until the next login
+Disable = function()
+    available = false
+    askPending = false
+    replyTimeout = nil
+    chooser:Hide()
+    frame:Hide()
+    events:UnregisterEvent("CHAT_MSG_ADDON")
+end
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("CHAT_MSG_ADDON")
@@ -362,12 +380,24 @@ events:SetScript("OnEvent", function(self, event, arg1, message, channel, sender
 end)
 
 events:SetScript("OnUpdate", function(self, elapsed)
-    if not loginDelay then return end
-    loginDelay = loginDelay - elapsed
-    if loginDelay <= 0 then
-        loginDelay = nil
-        askPending = true
-        Send("HELLO")
+    if loginDelay then
+        loginDelay = loginDelay - elapsed
+        if loginDelay <= 0 then
+            loginDelay = nil
+            askPending = true
+            replyTimeout = 10
+            Send("HELLO")
+        end
+    elseif replyTimeout then
+        if available then
+            replyTimeout = nil
+            return
+        end
+        replyTimeout = replyTimeout - elapsed
+        if replyTimeout <= 0 then
+            Disable()
+            Print("This server doesn't run the Dynamic Scaling module, so the addon is off until your next login.")
+        end
     end
 end)
 
@@ -375,6 +405,13 @@ SLASH_DSCALE1 = "/dscale"
 SLASH_DSCALE2 = "/scaling"
 SlashCmdList["DSCALE"] = function(arg)
     arg = arg and arg:gsub("^%s+", ""):gsub("%s+$", ""):lower() or ""
+    if available == false then
+        Print("Not available: this server doesn't run the Dynamic Scaling module.")
+        return
+    elseif available == nil then
+        Print("Still waiting for the server to answer, try again in a few seconds.")
+        return
+    end
     if arg == "choose" then
         Send("HELLO")
         chooser:Show()

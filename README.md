@@ -102,10 +102,11 @@ open world creature levels and rewards for every player level. It uses the same 
 ## The addon
 
 `addon/DynamicScaling` is a client addon (3.3.5): copy it to `Interface/AddOns`. On login it asks which leveling
-experience you want (No Scaling, Simple or Advanced), with "Do not ask again on next login" (this character) and
-"Do not ask on new characters" (every character). `/dscale` opens a window with your choice and the creatures
-around you: their own level, and what they would be for you in Simple and Advanced. It talks to the server with
-addon whispers (prefix `DSCALE`, see `src/DynamicScalingAddon.cpp`).
+experience you want (No Scaling, Simple or Advanced), with "Do not ask again on next login" (this character) and "Do not
+ask on new characters" (every character). `/dscale` opens a window with your choice and the creatures around you: their
+own level, and what they would be for you in Simple and Advanced. It talks to the server with addon whispers (prefix
+`DSCALE`, see `src/DynamicScalingAddon.cpp`). If the server doesn't answer within 10 seconds of logging in (no module,
+or it's off), the addon turns itself off until the next login.
 
 ## How it works
 
