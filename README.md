@@ -1,5 +1,9 @@
 # mod-dynamic-scaling
 
+[![mod-dynamic-scaling preview](https://img.youtube.com/vi/7a4U1o06K9A/hqdefault.jpg)](https://www.youtube.com/watch?v=7a4U1o06K9A)
+
+Preview: [watch it on YouTube](https://www.youtube.com/watch?v=7a4U1o06K9A).
+
 One AzerothCore module for scaling, with a **Simple** and an **Advanced** setting wherever it applies.
 
 | Where | Simple | Advanced |
