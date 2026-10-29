@@ -99,6 +99,8 @@ Config changes need `.reload config`.
 the Advanced instance multipliers for every group size (curve or straight line, bosses too), the Simple buff, and
 open world creature levels and rewards for every player level. It uses the same math as the module.
 
+Google Sheets version: [make your own copy](https://docs.google.com/spreadsheets/d/1kdWzf_IfJUgMwfhKOyVjfH054Bqk5sy0vRgbqCv6Jgo/copy).
+
 ## The addon
 
 `addon/DynamicScaling` is a client addon (3.3.5): copy it to `Interface/AddOns`. On login it asks which leveling
