@@ -20,6 +20,8 @@
 
 using namespace Acore::ChatCommands;
 
+void LoadDynamicScalingCooldownTables();
+
 namespace
 {
     char const* ModeName(ScalingMode mode)
@@ -208,6 +210,7 @@ public:
         sDynamicScaling->ApplyEntryLevelOverrides();
         sDynamicScaling->LoadCollective();
         sDynamicScaling->ApplyQuestMinLevelFallback();
+        LoadDynamicScalingCooldownTables();
         handler->PSendSysMessage("Dynamic Scaling: reloaded {} map rows and {} zone/area rows. Creatures rescale "
             "the next time they are out of combat.", sDynamicScaling->InstanceRowCount(),
             sDynamicScaling->ZoneRowCount());

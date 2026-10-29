@@ -32,6 +32,11 @@ Extras:
   far above you give the XP and money of a quest at the margin, a creature's gold follows its scaled level, its
   level range loot tables ("Vanilla Greens 8-12 Level Range") swap to those of its scaled level, and a creature
   scaled down drops no items far above it.
+- **Cooldown resets**: defeating a boss, or wiping on it after 30 seconds, resets
+  everyone's cooldowns and clears Sated / Exhaustion. Per instance kind (dungeons, heroic dungeons, 10 / 25 player
+  raids, heroic raids) and per creature kind (bosses, world bosses, elites, rares), in the config or the database.
+  Battlegrounds (when the gates open), arenas (on entering) and duels (when one ends, only the cooldowns used in it)
+  can reset cooldowns too, and `dynamic_scaling_cooldown_spell` says which spells are always or never reset where.
 - **No level up effect**: a creature changing level is sent again to whoever sees it, instead of "dinging"
   (`World.SilentLevelChange`).
 
@@ -80,6 +85,12 @@ So `level_min = 0, level_max = 80` means "only scale up", and `level_min = 1, le
   open world, over every category rule.
 - `dynamic_scaling_category` (world DB): which kinds of creature scale, used instead of `World.NeverScale` when
   `World.UseDBOverride = 1`.
+- `dynamic_scaling_cooldown_rule` (world DB): the cooldown reset switches, used instead of the config when
+  `CooldownReset.UseDBOverride = 1`.
+- `dynamic_scaling_cooldown_reset` (world DB): creatures that always (`reset` 1) or never (0) reset cooldowns,
+  and encounters that don't.
+- `dynamic_scaling_cooldown_spell` (world DB): spells and spell categories always (`reset_in`) or never
+  (`never_in`) reset, per place: 1 instance, 2 battleground, 4 arena, 8 duel, added up.
 - `dynamic_scaling_player` (characters DB): each player's `.scaling` choice (`enabled`: 0 off, 1 Simple, 2 Advanced).
 - `spell_dbc` 150100: the server side aura that carries the Simple mode stat buff.
 
@@ -168,5 +179,7 @@ Ideas and mechanisms from:
   `SelectLevel` hooks and the damage hooks.
 - [DungeonRespawn](https://github.com/AnchyDev/DungeonRespawn) by AnchyDev: respawning inside the instance
   after releasing.
+- [sogladev](https://github.com/sogladev): the cooldown reset mechanic (boss encounter and wipe triggers, the wipe
+  timer, what gets reset) and the list of raid bosses and encounters.
 - TrinityCore's level scaling (`Creature::GetLevelForTarget` / content tuning) was read for comparison; it
   needs per-player levels that a 3.3.5 client can't show, so this module uses one level per creature instead.

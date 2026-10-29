@@ -551,3 +551,121 @@ DynamicScaling.World.LootSwap.WrathFromLevel = 71
 #                     0 - disabled
 
 DynamicScaling.World.QuestMinLevel.Enable = 1
+
+########################################
+# Cooldown resets (instances, battlegrounds, arenas, duels)
+########################################
+#
+# Defeating a boss, or wiping on it after CombatTimeRequired seconds, resets the cooldowns of everyone in the
+# instance and clears Sated / Exhaustion, like Wrath Classic after raid encounters. The mechanic is by sogladev.
+# Battlegrounds, arenas and duels can reset cooldowns too. Which spells are always or never reset, per place, is in
+# `dynamic_scaling_cooldown_spell`.
+#
+#    DynamicScaling.CooldownReset.Enable
+#        Description: Reset cooldowns (every switch below).
+#        Default:     1 - enabled
+#                     0 - disabled
+
+DynamicScaling.CooldownReset.Enable = 1
+
+#
+#    DynamicScaling.CooldownReset.Announce
+#        Description: Tell players when their cooldowns were reset, and why.
+#        Default:     1 - enabled
+
+DynamicScaling.CooldownReset.Announce = 1
+
+#
+#    DynamicScaling.CooldownReset.UseDBOverride
+#        Description: Take the instance, creature, battleground, arena and duel switches below from
+#                     `dynamic_scaling_cooldown_rule` (one row per switch, same names, reset 0 / 1) instead of this
+#                     file. `dynamic_scaling_cooldown_reset` (creatures, encounters) and
+#                     `dynamic_scaling_cooldown_spell` (spells) are always used.
+#        Default:     0 - use this file
+#                     1 - use the table
+
+DynamicScaling.CooldownReset.UseDBOverride = 0
+
+#
+#    DynamicScaling.CooldownReset.Dungeon
+#    DynamicScaling.CooldownReset.DungeonHeroic
+#    DynamicScaling.CooldownReset.Raid10
+#    DynamicScaling.CooldownReset.Raid25
+#    DynamicScaling.CooldownReset.Raid10Heroic
+#    DynamicScaling.CooldownReset.Raid25Heroic
+#        Description: Which instances reset cooldowns. 20 and 40 player raids count as Raid25.
+#        Default:     0 / 0 / 1 / 1 / 1 / 1
+
+DynamicScaling.CooldownReset.Dungeon = 0
+DynamicScaling.CooldownReset.DungeonHeroic = 0
+DynamicScaling.CooldownReset.Raid10 = 1
+DynamicScaling.CooldownReset.Raid25 = 1
+DynamicScaling.CooldownReset.Raid10Heroic = 1
+DynamicScaling.CooldownReset.Raid25Heroic = 1
+
+#
+#    DynamicScaling.CooldownReset.Boss
+#    DynamicScaling.CooldownReset.WorldBoss
+#    DynamicScaling.CooldownReset.Elite
+#    DynamicScaling.CooldownReset.Rare
+#        Description: Which creatures reset cooldowns in those instances.
+#                       Boss      - boss encounters: defeated, or wiped on after CombatTimeRequired
+#                       WorldBoss - world bosses, when they die
+#                       Elite     - elites (rare elites too), when they die
+#                       Rare      - rares (rare elites too), when they die
+#                     Elites and rares never reset on a wipe, so they can't be pulled and run to reset cooldowns.
+#                     Summoned adds only count when listed in `dynamic_scaling_cooldown_reset`.
+#        Default:     1 / 1 / 0 / 0
+
+DynamicScaling.CooldownReset.Boss = 1
+DynamicScaling.CooldownReset.WorldBoss = 1
+DynamicScaling.CooldownReset.Elite = 0
+DynamicScaling.CooldownReset.Rare = 0
+
+#
+#    DynamicScaling.CooldownReset.Battleground
+#    DynamicScaling.CooldownReset.Arena
+#    DynamicScaling.CooldownReset.Duel
+#        Description: Reset cooldowns outside instances too.
+#                       Battleground - when the gates open, and for players joining one already under way
+#                       Arena        - on entering one, on top of the core's own reset (cooldowns under 10
+#                                      minutes): adds the spells `dynamic_scaling_cooldown_spell` resets in arenas
+#                       Duel         - when a duel ends, only the cooldowns used in it (from the countdown on), so
+#                                      a duel can't reset cooldowns from before it. Sated is never removed after
+#                                      a duel.
+#        Default:     0 / 0 / 0
+
+DynamicScaling.CooldownReset.Battleground = 0
+DynamicScaling.CooldownReset.Arena = 0
+DynamicScaling.CooldownReset.Duel = 0
+
+#
+#    DynamicScaling.CooldownReset.CombatTimeRequired
+#        Description: Seconds a boss has to be fought before a wipe on it resets cooldowns.
+#        Default:     30
+
+DynamicScaling.CooldownReset.CombatTimeRequired = 30
+
+#
+#    DynamicScaling.CooldownReset.ShortCooldowns
+#        Description: Reset every cooldown under 10 minutes, as entering an arena does. Longer ones are only reset
+#                     when `dynamic_scaling_cooldown_spell` lists them for that place (by default Army of the Dead,
+#                     the elemental totems, Inferno and the Rebirth category, in instances), and listed "never"
+#                     ones are kept.
+#        Default:     1 - enabled
+
+DynamicScaling.CooldownReset.ShortCooldowns = 1
+
+#
+#    DynamicScaling.CooldownReset.RemoveSated
+#        Description: Remove Sated and Exhaustion (Bloodlust / Heroism) from players (and pets, with PetCooldowns).
+#        Default:     1 - enabled
+
+DynamicScaling.CooldownReset.RemoveSated = 1
+
+#
+#    DynamicScaling.CooldownReset.PetCooldowns
+#        Description: Also reset player pets' cooldowns.
+#        Default:     0 - disabled
+
+DynamicScaling.CooldownReset.PetCooldowns = 0
