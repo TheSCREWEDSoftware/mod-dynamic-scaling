@@ -144,11 +144,18 @@ core's again once the module is gone.
 
 ## Known limits
 
-- Scaling works however you enter (walking in or the Dungeon Finder). `entry_level_min` also unlocks a dungeon in
-  the Dungeon Finder (`Instance.LFG.EntryLevel`), but the random dungeon pool still uses `LFGDungeons.dbc`'s level
-  ranges, and the client may still list a dungeon as too high until the server's unlock reaches it.
-- `entry_level_min` edits the access requirements the core loaded. A core `.reload` of those requirements
-  undoes it until `.dscale reload`.
+- Scaling works however you enter an instance (walking in or the Dungeon Finder). `entry_level_min` and
+  `Instance.DefaultEntryLevel` open a dungeon both at the entrance and in the Dungeon Finder, but the "Random
+  Dungeon" queues keep `LFGDungeons.dbc`'s level ranges, and raids aren't in the 3.3.5 Dungeon Finder at all.
+- The client hides the Dungeon Finder below level 15. `Instance.LFG.UILevel` lowers that only for players with the
+  DynamicScaling addon.
+- Entry levels are written over the access requirements the core loaded, in memory. A core `.reload` of those
+  requirements undoes them until `.dscale reload`.
+- A creature has one level for everyone (the 3.3.5 client shows one level per creature): it follows the player it
+  is fighting, or the nearest player / group average out of combat.
+- Spell hit chance and aggro range still follow the creature's level, as in the core.
+- The loot swap only replaces the "... Level Range" reference tables; creature specific drops stay, and items in
+  equal chance loot groups skip the item level filter.
 - Gray kill XP goes to the killer and nearby group members only, split evenly.
 
 ## Credits
