@@ -140,6 +140,14 @@ void DynamicScalingMgr::LoadConfig()
     c.respawnRaids = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Respawn.Raids", true);
     c.respawnHealthPct = std::clamp(sConfigMgr->GetOption<float>("DynamicScaling.Instance.Respawn.HealthPct", 50.0f),
         1.0f, 100.0f);
+    c.respawnManaPct = std::clamp(sConfigMgr->GetOption<float>("DynamicScaling.Instance.Respawn.ManaPct", 50.0f),
+        0.0f, 100.0f);
+    c.respawnRagePct = std::clamp(sConfigMgr->GetOption<float>("DynamicScaling.Instance.Respawn.RagePct", 0.0f),
+        0.0f, 100.0f);
+    c.respawnEnergyPct = std::clamp(sConfigMgr->GetOption<float>("DynamicScaling.Instance.Respawn.EnergyPct", 50.0f),
+        0.0f, 100.0f);
+    c.respawnRunicPowerPct = std::clamp(
+        sConfigMgr->GetOption<float>("DynamicScaling.Instance.Respawn.RunicPowerPct", 0.0f), 0.0f, 100.0f);
 
     c.worldEnable = sConfigMgr->GetOption<bool>("DynamicScaling.World.Enable", true);
     c.worldDefaultScaled = sConfigMgr->GetOption<uint32>("DynamicScaling.World.DefaultMode", 0) != 0;

@@ -263,10 +263,19 @@ DynamicScaling.Instance.Respawn.Raids = 1
 
 #
 #    DynamicScaling.Instance.Respawn.HealthPct
-#        Description: Health and mana percent after the respawn.
-#        Default:     50
+#    DynamicScaling.Instance.Respawn.ManaPct
+#    DynamicScaling.Instance.Respawn.RagePct
+#    DynamicScaling.Instance.Respawn.EnergyPct
+#    DynamicScaling.Instance.Respawn.RunicPowerPct
+#        Description: Percent of each resource after the respawn (health at least 1). A resource the class
+#                     doesn't have is skipped.
+#        Default:     50 / 50 / 0 / 50 / 0
 
 DynamicScaling.Instance.Respawn.HealthPct = 50
+DynamicScaling.Instance.Respawn.ManaPct = 50
+DynamicScaling.Instance.Respawn.RagePct = 0
+DynamicScaling.Instance.Respawn.EnergyPct = 50
+DynamicScaling.Instance.Respawn.RunicPowerPct = 0
 
 ########################################
 # Open world

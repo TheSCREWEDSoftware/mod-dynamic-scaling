@@ -214,6 +214,10 @@ struct DSConfig
     bool respawnEnable = true;
     bool respawnRaids = true;
     float respawnHealthPct = 50.0f;
+    float respawnManaPct = 50.0f;
+    float respawnRagePct = 0.0f;
+    float respawnEnergyPct = 50.0f;
+    float respawnRunicPowerPct = 0.0f;
 
     // World
     bool worldEnable = true;

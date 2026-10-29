@@ -698,7 +698,14 @@ public:
 
         player->TeleportTo(player->GetMapId(), pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(),
             pos.GetOrientation());
-        player->ResurrectPlayer(sDynamicScaling->Config().respawnHealthPct / 100.0f, false);
+        DSConfig const& config = sDynamicScaling->Config();
+        player->ResurrectPlayer(config.respawnHealthPct / 100.0f, false);
+        std::pair<Powers, float> const powers[] = { { POWER_MANA, config.respawnManaPct },
+            { POWER_RAGE, config.respawnRagePct }, { POWER_ENERGY, config.respawnEnergyPct },
+            { POWER_RUNIC_POWER, config.respawnRunicPowerPct } };
+        for (auto const& [power, pct] : powers)
+            if (uint32 max = player->GetMaxPower(power))
+                player->SetPower(power, uint32(float(max) * pct / 100.0f));
         player->SpawnCorpseBones();
         return false;
     }
