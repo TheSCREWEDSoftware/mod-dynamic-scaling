@@ -26,7 +26,7 @@ DynamicScaling.Enable = 1
 #
 #    DynamicScaling.Announce
 #        Description: Tell players on login that the module runs, and tell them their Simple mode buff
-#                     when they enter an instance.
+#                     when they enter an instance. Never while DynamicScaling.Enable = 0.
 #        Default:     1 - enabled
 #                     0 - disabled
 
@@ -562,7 +562,7 @@ DynamicScaling.World.QuestMinLevel.Enable = 1
 # `dynamic_scaling_cooldown_spell`.
 #
 #    DynamicScaling.CooldownReset.Enable
-#        Description: Reset cooldowns (every switch below).
+#        Description: Reset cooldowns (every switch below). DynamicScaling.Enable = 0 turns them off too.
 #        Default:     1 - enabled
 #                     0 - disabled
 
@@ -570,7 +570,8 @@ DynamicScaling.CooldownReset.Enable = 1
 
 #
 #    DynamicScaling.CooldownReset.Announce
-#        Description: Tell players when their cooldowns were reset, and why.
+#        Description: Tell players when their cooldowns were reset, and why. Never while the module or the
+#                     cooldown resets are off.
 #        Default:     1 - enabled
 
 DynamicScaling.CooldownReset.Announce = 1

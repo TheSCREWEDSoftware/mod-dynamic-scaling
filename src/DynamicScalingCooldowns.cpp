@@ -139,8 +139,10 @@ public:
 
     void LoadConfig()
     {
-        enable = sConfigMgr->GetOption<bool>("DynamicScaling.CooldownReset.Enable", true);
-        announce = sConfigMgr->GetOption<bool>("DynamicScaling.CooldownReset.Announce", true);
+        // DynamicScaling.Enable is the master switch, announcements included
+        enable = sConfigMgr->GetOption<bool>("DynamicScaling.Enable", true) &&
+            sConfigMgr->GetOption<bool>("DynamicScaling.CooldownReset.Enable", true);
+        announce = enable && sConfigMgr->GetOption<bool>("DynamicScaling.CooldownReset.Announce", true);
         useDBOverride = sConfigMgr->GetOption<bool>("DynamicScaling.CooldownReset.UseDBOverride", false);
         for (uint8 i = 0; i < MAX_COOLDOWN_RULE; ++i)
             configRules[i] = sConfigMgr->GetOption<bool>(

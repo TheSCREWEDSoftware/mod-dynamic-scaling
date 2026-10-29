@@ -84,7 +84,7 @@ void DynamicScalingMgr::LoadConfig()
     DSConfig c;
 
     c.enable = sConfigMgr->GetOption<bool>("DynamicScaling.Enable", true);
-    c.announce = sConfigMgr->GetOption<bool>("DynamicScaling.Announce", true);
+    c.announce = c.enable && sConfigMgr->GetOption<bool>("DynamicScaling.Announce", true); // never while off
     c.playerToggle = sConfigMgr->GetOption<bool>("DynamicScaling.PlayerToggle.Enable", true);
     c.playerDefault = ToMode(sConfigMgr->GetOption<uint32>("DynamicScaling.PlayerToggle.Default", 1),
         ScalingMode::Simple);
