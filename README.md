@@ -123,7 +123,8 @@ experience you want (No Scaling, Simple or Advanced), with "Do not ask again on 
 ask on new characters" (every character). `/dscale` opens a window with your choice and the creatures around you: their
 own level, and what they would be for you in Simple and Advanced. It talks to the server with addon whispers (prefix
 `DSCALE`, see `src/DynamicScalingAddon.cpp`). If the server doesn't answer within 10 seconds of logging in (no module,
-or it's off), the addon turns itself off until the next login.
+or it's off), the addon turns itself off until the next login. A minimap button (drag it around; right-click for
+options) opens the window, and the addon has a page in Interface > AddOns (minimap button on / off).
 
 ## How it works
 

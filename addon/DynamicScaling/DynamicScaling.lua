@@ -27,6 +27,7 @@ local newCharacter = false
 local askPending = false
 local available = nil    -- nil: still asking the server, true: the module answered, false: it didn't
 local replyTimeout       -- seconds left for the first answer
+local minimapButton, optionsPanel
 
 local function Send(body)
     if available == false then return end
@@ -362,6 +363,7 @@ Disable = function()
     replyTimeout = nil
     chooser:Hide()
     frame:Hide()
+    if minimapButton then minimapButton:Hide() end
     events:UnregisterEvent("CHAT_MSG_ADDON")
 end
 events:RegisterEvent("ADDON_LOADED")
@@ -427,3 +429,143 @@ SlashCmdList["DSCALE"] = function(arg)
         frame:Show()
     end
 end
+
+local UI_NAME = "DynamicScaling"
+local UI_TITLE = "Dynamic Scaling"
+local UI_ICON = "Interface\\Icons\\Spell_Nature_TimeStop"
+local UI_DEFAULT_ANGLE = 225
+local UI_CLICK_TEXT = "open the scaling window"
+local UI_HELP = "Choose your leveling experience on servers with mod-dynamic-scaling (No Scaling, Simple or " ..
+    "Advanced), and see what the creatures around you would be in each.\n\n/dscale - show or hide the window\n" ..
+    "/dscale choose - show the choice again"
+local function UI_DB()
+    DynamicScalingDB = DynamicScalingDB or {}
+    return DynamicScalingDB
+end
+local function UI_STATUS()
+    if available then
+        return "|cff4CFF00Connected.|r Your scaling: " .. (MODE_NAMES[state.mode] or "?") .. "."
+    end
+    if available == false then
+        return "|cffFF6060Not available:|r this server doesn't run the Dynamic Scaling module (off until your next " ..
+            "login)."
+    end
+    return "Waiting for the server to answer..."
+end
+local function UI_TOGGLE() SlashCmdList["DSCALE"]("") end
+
+-- ---------------------------------------------------------------- minimap button and Interface > AddOns panel
+
+local function PlaceMinimapButton()
+    local angle = math.rad(UI_DB().minimapAngle or UI_DEFAULT_ANGLE)
+    minimapButton:ClearAllPoints()
+    minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * 80, math.sin(angle) * 80)
+end
+
+local function UpdateMinimapButton()
+    if not minimapButton then return end
+    if available == false or UI_DB().hideMinimap then minimapButton:Hide() else minimapButton:Show() end
+end
+
+local function CreateMinimapButton()
+    minimapButton = CreateFrame("Button", UI_NAME .. "MinimapButton", Minimap)
+    minimapButton:SetWidth(31); minimapButton:SetHeight(31)
+    minimapButton:SetFrameStrata("MEDIUM")
+    minimapButton:SetFrameLevel(8)
+    minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    minimapButton:RegisterForDrag("LeftButton")
+    minimapButton:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+    local background = minimapButton:CreateTexture(nil, "BACKGROUND")
+    background:SetWidth(20); background:SetHeight(20)
+    background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    background:SetPoint("TOPLEFT", 7, -5)
+    local icon = minimapButton:CreateTexture(nil, "ARTWORK")
+    icon:SetWidth(17); icon:SetHeight(17)
+    icon:SetTexture(UI_ICON)
+    icon:SetPoint("TOPLEFT", 7, -6)
+    local border = minimapButton:CreateTexture(nil, "OVERLAY")
+    border:SetWidth(53); border:SetHeight(53)
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetPoint("TOPLEFT")
+
+    -- Drag it around the minimap
+    minimapButton:SetScript("OnDragStart", function(self)
+        self:SetScript("OnUpdate", function()
+            local mx, my = Minimap:GetCenter()
+            local x, y = GetCursorPosition()
+            local scale = Minimap:GetEffectiveScale()
+            UI_DB().minimapAngle = math.deg(math.atan2(y / scale - my, x / scale - mx))
+            PlaceMinimapButton()
+        end)
+    end)
+    minimapButton:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
+    minimapButton:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            InterfaceOptionsFrame_OpenToCategory(optionsPanel)
+        else
+            UI_TOGGLE()
+        end
+    end)
+    minimapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine(UI_TITLE)
+        GameTooltip:AddLine(UI_STATUS(), 1, 1, 1, true)
+        GameTooltip:AddLine("Left-click: " .. UI_CLICK_TEXT, 0.6, 0.8, 1)
+        GameTooltip:AddLine("Right-click: options. Drag: move this button.", 0.6, 0.8, 1)
+        GameTooltip:Show()
+    end)
+    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    PlaceMinimapButton()
+    UpdateMinimapButton()
+end
+
+optionsPanel = CreateFrame("Frame", UI_NAME .. "Options", UIParent)
+optionsPanel.name = UI_TITLE
+optionsPanel:Hide()
+
+local optionsTitle = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+optionsTitle:SetPoint("TOPLEFT", 16, -16)
+optionsTitle:SetText(UI_TITLE)
+
+local optionsText = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+optionsText:SetPoint("TOPLEFT", optionsTitle, "BOTTOMLEFT", 0, -8)
+optionsText:SetWidth(560)
+optionsText:SetJustifyH("LEFT")
+
+local optionsStatus = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+optionsStatus:SetPoint("TOPLEFT", optionsText, "BOTTOMLEFT", 0, -12)
+optionsStatus:SetWidth(560)
+optionsStatus:SetJustifyH("LEFT")
+
+local minimapCheck = CreateFrame("CheckButton", UI_NAME .. "MinimapCheck", optionsPanel,
+    "InterfaceOptionsCheckButtonTemplate")
+minimapCheck:SetPoint("TOPLEFT", optionsStatus, "BOTTOMLEFT", -2, -12)
+_G[UI_NAME .. "MinimapCheckText"]:SetText("Show the minimap button")
+minimapCheck:SetScript("OnClick", function(self)
+    UI_DB().hideMinimap = not self:GetChecked()
+    UpdateMinimapButton()
+end)
+
+local openButton = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
+openButton:SetWidth(160); openButton:SetHeight(22)
+openButton:SetPoint("TOPLEFT", minimapCheck, "BOTTOMLEFT", 2, -12)
+openButton:SetText(UI_CLICK_TEXT:sub(1, 1):upper() .. UI_CLICK_TEXT:sub(2))
+openButton:SetScript("OnClick", function()
+    InterfaceOptionsFrame:Hide()
+    UI_TOGGLE()
+end)
+
+optionsPanel:SetScript("OnShow", function()
+    optionsText:SetText(UI_HELP)
+    optionsStatus:SetText(UI_STATUS())
+    minimapCheck:SetChecked(not UI_DB().hideMinimap)
+    if available then openButton:Enable() else openButton:Disable() end
+end)
+
+InterfaceOptions_AddCategory(optionsPanel)
+
+local uiEvents = CreateFrame("Frame")
+uiEvents:RegisterEvent("PLAYER_LOGIN")
+uiEvents:SetScript("OnEvent", CreateMinimapButton)
