@@ -318,6 +318,12 @@ local function OnMessage(message)
         state.offLevels = tonumber(parts[4]) or 0
         state.simpleTrail = tonumber(parts[5]) or 3
         state.advancedTrail = tonumber(parts[6]) or 2
+        -- The server lets the Dungeon Finder open sooner than the client's own level (SHOW_LFD_LEVEL, 15)
+        local lfdLevel = tonumber(parts[7]) or 0
+        if lfdLevel > 0 and SHOW_LFD_LEVEL and lfdLevel ~= SHOW_LFD_LEVEL then
+            SHOW_LFD_LEVEL = lfdLevel
+            if UpdateMicroButtons then UpdateMicroButtons() end
+        end
     elseif kind == "Z" then
         state.zoneScaled = parts[4] == "1"
         state.advancedMin = tonumber(parts[5]) or 0

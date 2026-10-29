@@ -132,6 +132,9 @@ void DynamicScalingMgr::LoadConfig()
         sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.BossInflectionModifier", 1.0f);
     c.advancedBossMult = sConfigMgr->GetOption<float>("DynamicScaling.Instance.Advanced.BossMult", 1.0f);
     c.lfgEntryLevel = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.LFG.EntryLevel", true);
+    c.defaultEntryLevel = sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.DefaultEntryLevel", 0);
+    c.defaultEntryLevelRaids = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.DefaultEntryLevel.Raids", false);
+    c.lfgUILevel = sConfigMgr->GetOption<uint8>("DynamicScaling.Instance.LFG.UILevel", 0);
 
     c.respawnEnable = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Respawn.Enable", true);
     c.respawnRaids = sConfigMgr->GetOption<bool>("DynamicScaling.Instance.Respawn.Raids", true);
@@ -308,26 +311,25 @@ void DynamicScalingMgr::ApplyEntryLevelOverrides()
     if (!_config.enable || !_config.instanceEnable)
         return;
 
+    // Every instance with an access requirement: its map row's entry_level_min, else Instance.DefaultEntryLevel
     uint32 count = 0;
-    for (auto const& [key, row] : _instanceRows)
+    for (MapEntry const* map : sMapStore)
     {
-        if (!row.entryLevelMin)
+        if (!map || !map->IsDungeon())
             continue;
 
         for (uint8 diff = 0; diff < MAX_DIFFICULTY; ++diff)
         {
-            if (row.difficulty != DS_USE_CONFIG && row.difficulty != diff)
+            DungeonProgressionRequirements const* ar = sObjectMgr->GetAccessRequirement(map->MapID, Difficulty(diff));
+            uint8 entryLevel = ar ? GetEntryLevel(map->MapID, diff) : 0;
+            if (!entryLevel)
                 continue;
 
-            DungeonProgressionRequirements const* ar = sObjectMgr->GetAccessRequirement(row.mapId, Difficulty(diff));
-            if (!ar)
-                continue;
-
-            uint64 arKey = MakeInstanceKey(row.mapId, diff);
+            uint64 arKey = MakeInstanceKey(map->MapID, diff);
             if (_originalEntryLevels.find(arKey) == _originalEntryLevels.end())
                 _originalEntryLevels[arKey] = ar->levelMin;
 
-            const_cast<DungeonProgressionRequirements*>(ar)->levelMin = row.entryLevelMin;
+            const_cast<DungeonProgressionRequirements*>(ar)->levelMin = entryLevel;
             ++count;
         }
     }
@@ -517,7 +519,13 @@ float DynamicScalingMgr::AdvancedMultiplier(float floor, uint32 players, uint8 e
 uint8 DynamicScalingMgr::GetEntryLevel(uint32 mapId, uint8 difficulty) const
 {
     InstanceScalingRow const* row = FindInstanceRow(mapId, difficulty);
-    return row ? row->entryLevelMin : 0;
+    if (row && row->entryLevelMin)
+        return row->entryLevelMin;
+
+    MapEntry const* map = sMapStore.LookupEntry(mapId);
+    if (!_config.defaultEntryLevel || !map || !map->IsDungeon() || (map->IsRaid() && !_config.defaultEntryLevelRaids))
+        return 0;
+    return _config.defaultEntryLevel;
 }
 
 float DynamicScalingMgr::MoneyForLevel(uint8 level)

@@ -207,6 +207,9 @@ struct DSConfig
     float advancedBossInflection = 1.0f;   // the boss curve's inflection point, as a multiple of the normal one
     float advancedBossMult = 1.0f;         // bosses on top of everything else
     bool lfgEntryLevel = true;             // entry_level_min also unlocks the dungeon in the Dungeon Finder
+    uint8 defaultEntryLevel = 0;           // entry level for instances without their own (0 = the core's)
+    bool defaultEntryLevelRaids = false;   // ...raids too
+    uint8 lfgUILevel = 0;                  // the addon shows the Dungeon Finder from this level (0 = client's 15)
 
     bool respawnEnable = true;
     bool respawnRaids = true;

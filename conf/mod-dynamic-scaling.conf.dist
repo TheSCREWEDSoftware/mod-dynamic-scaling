@@ -225,6 +225,27 @@ DynamicScaling.Instance.Advanced.BossMult = 1.0
 DynamicScaling.Instance.LFG.EntryLevel = 1
 
 #
+#    DynamicScaling.Instance.DefaultEntryLevel
+#    DynamicScaling.Instance.DefaultEntryLevel.Raids
+#        Description: Entry level for every dungeon without its own entry_level_min (walking in through the
+#                     entrance, and the Dungeon Finder with LFG.EntryLevel). 1 = any level. Raids only with
+#                     DefaultEntryLevel.Raids = 1.
+#        Default:     0 - the core's own requirements
+#                     0 - raids keep theirs
+
+DynamicScaling.Instance.DefaultEntryLevel = 0
+DynamicScaling.Instance.DefaultEntryLevel.Raids = 0
+
+#
+#    DynamicScaling.Instance.LFG.UILevel
+#        Description: The level the Dungeon Finder (the "LFD" button and the I key) opens from, instead of the
+#                     client's 15. Client side, so it needs the DynamicScaling addon. Dungeons still need their
+#                     entry level to be queued; the random dungeon queues keep LFGDungeons.dbc's levels.
+#        Default:     0 - the client's own level
+
+DynamicScaling.Instance.LFG.UILevel = 0
+
+#
 #    DynamicScaling.Instance.Respawn.Enable
 #        Description: Releasing your spirit inside an instance brings you back alive at the instance entrance
 #                     (or the map row's respawn_x/y/z/o), instead of the graveyard outside.

@@ -5,7 +5,8 @@
  *   client -> server  "HELLO"            your choice and the place you are in
  *                     "SET\t<0|1|2>"     choose Off / Simple / Advanced
  *                     "NEAR"             creatures around you, with their levels in each mode
- *   server -> client  "M\t<mode>\t<can choose 0/1>\t<off quest credit levels>\t<simple trail>\t<advanced trail>"
+ *   server -> client  "M\t<mode>\t<can choose 0/1>\t<off quest credit levels>\t<simple trail>\t<advanced trail>\t
+ *                      <Dungeon Finder level, 0 = the client's own>"
  *                     "Z\t<zone>\t<area>\t<scaled 0/1>\t<advanced min>\t<advanced max>\t<instance 0/1>"
  *                     "N\t<entry>\t<name>\t<own>\t<simple>\t<advanced>\t<now>\t<count>"  (0 = not scaled there)
  *                     "E\t<request>\t<count>"  end of a reply;  "X\t<error>"
@@ -54,9 +55,9 @@ namespace
     void SendMode(Player* player)
     {
         DSConfig const& config = sDynamicScaling->Config();
-        Send(player, Acore::StringFormat("M\t{}\t{}\t{}\t{}\t{}", uint32(sDynamicScaling->GetPlayerMode(player)),
+        Send(player, Acore::StringFormat("M\t{}\t{}\t{}\t{}\t{}\t{}", uint32(sDynamicScaling->GetPlayerMode(player)),
             config.playerToggle ? 1 : 0, config.offQuestCreditLevels, config.worldSimpleTrail,
-            config.worldTrailLevels));
+            config.worldTrailLevels, config.enable && config.instanceEnable ? config.lfgUILevel : 0));
     }
 
     void SendZone(Player* player)
