@@ -1,5 +1,6 @@
-# Every addon in addon/ gets a GitHub release for each version: when its .toc "## Version" has no release yet, the
-# addon folder is zipped (ready to unzip into Interface\AddOns) and released as <Addon>-v<version>.
+# Every addon in addon/ gets a GitHub release for each version: the version is read from its .toc ("## Version",
+# as written there; nothing is changed or bumped). When that version has no release yet, a tag v<version> is made
+# and the addon folder, under its own name, is zipped as <Addon>.zip (ready to unzip into Interface\AddOns).
 name: Addon release
 
 on:
@@ -30,18 +31,18 @@ jobs:
               echo "$toc has no ## Version line, skipped"
               continue
             fi
-            tag="$name-v$version"
+            case "$version" in v*) tag="$version" ;; *) tag="v$version" ;; esac
             if gh release view "$tag" > /dev/null 2>&1; then
               echo "$tag is already released"
               continue
             fi
-            zip="$name-v$version.zip"
+            zip="$name.zip"
             (cd addon && zip -qr "../$zip" "$name")
             notes="$name addon, version $version, for $GITHUB_REPOSITORY at ${GITHUB_SHA:0:7}.
 
           Install: unzip into your WoW 3.3.5 client's \`Interface\\AddOns\` folder (you get \`Interface\\AddOns\\$name\`),
           then restart the game or type /reload. The server's module must expect this addon version; if not, the
           addon tells you in chat."
-            gh release create "$tag" "$zip" --target "$GITHUB_SHA" --title "$name v$version" --notes "$notes"
+            gh release create "$tag" "$zip" --target "$GITHUB_SHA" --title "$name $tag" --notes "$notes"
             echo "released $tag"
           done
