@@ -293,6 +293,9 @@ public:
     std::size_t CollectiveCount() const { return _collectiveBrackets.size(); }
     // The randomizer bracket of an open world zone (collective world scaling); false if it has none
     bool GetCollectiveZone(uint32 zoneId, uint8& levelMin, uint8& levelMax) const;
+    // A level moved into the zone's bracket the way the randomizer does it (its own range squeezed or stretched
+    // into the bracket); false if the zone has no bracket
+    bool RemapToCollectiveZone(uint32 zoneId, uint8& level) const;
 
     DSConfig const& Config() const { return _config; }
     uint32 GetSettingsVersion() const { return _settingsVersion; }
@@ -396,7 +399,12 @@ private:
     std::unordered_map<ObjectGuid::LowType, EntryPosition> _entryPositions;
     std::unordered_map<ObjectGuid::LowType, ScalingMode> _playerChoices;
     std::unordered_map<uint32, std::pair<uint8, uint8>> _collectiveBrackets; // dungeon map -> randomizer bracket
-    std::unordered_map<uint32, std::pair<uint8, uint8>> _collectiveZones;    // zone -> randomizer bracket
+    struct CollectiveZone
+    {
+        uint8 levelMin, levelMax; // the bracket the randomizer gave it
+        uint8 homeMin, homeMax;   // its own range before the shuffle
+    };
+    std::unordered_map<uint32, CollectiveZone> _collectiveZones;
     std::unordered_map<ObjectGuid::LowType, int32> _lastAnnounced; // stat percent last told to the player
 };
 

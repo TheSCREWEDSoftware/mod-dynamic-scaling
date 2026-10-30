@@ -77,7 +77,9 @@ DynamicScaling.Collective.WorldRandomizer = 1
 #                     each zone. Creatures follow your level and .scaling choice (Simple trails you by
 #                     World.SimpleTrailLevels, Advanced by World.TrailLevels) and never leave the zone's bracket:
 #                     a level 1 player in Bloodmyst Isle (1-10) meets level 1 creatures, a level 8 one level 5-6.
-#                     Players with scaling off see the creatures' own levels squeezed into the bracket. Rewards
+#                     Players with scaling off see the creatures' own levels squeezed into the bracket (as the
+#                     randomizer does), and so does everyone for creatures this module never scales (quest givers,
+#                     guards, bosses: World.NeverScale). Rewards
 #                     and the loot swap follow the scaled levels. Needs DynamicScaling.World.Enable.
 #        Default:     1 - enabled
 #                     0 - disabled (the randomizer sets open world levels, and this module leaves them alone)

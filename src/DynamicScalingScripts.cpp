@@ -235,8 +235,28 @@ private:
     void SpawnAtWorldLevel(Creature* creature, DSCreatureInfo* info, Map* map, uint8& level)
     {
         DSConfig const& config = sDynamicScaling->Config();
-        if (!config.worldEnable || !sDynamicScaling->IsCreatureEligible(creature, true))
+        if (!config.worldEnable)
             return;
+
+        if (!sDynamicScaling->IsCreatureEligible(creature, true))
+        {
+            // Collective world scaling: creatures this module never scales (quest givers, guards, bosses...) still
+            // move into the zone's bracket, as the randomizer would have moved them
+            if (config.collectiveWorld)
+            {
+                uint32 zone = 0;
+                uint32 area = 0;
+                map->GetZoneAndAreaId(creature->GetPhaseMask(), zone, area, creature->GetPositionX(),
+                    creature->GetPositionY(), creature->GetPositionZ());
+                uint8 target = level;
+                if (sDynamicScaling->RemapToCollectiveZone(zone, target) && target != level)
+                {
+                    level = target;
+                    info->scaledLevel = target;
+                }
+            }
+            return;
+        }
 
         float range = sDynamicScaling->GetWorldRange(map);
         Player* nearest = nullptr;
@@ -262,13 +282,11 @@ private:
 
         if (!nearest)
         {
-            // Collective world scaling: nobody around yet, so at least inside the zone's bracket (a kept level 18
-            // creature in a 1-10 zone doesn't show up as 18 before it rescales to whoever comes)
-            uint8 levelMin = 0;
-            uint8 levelMax = 0;
-            if (config.collectiveWorld && sDynamicScaling->GetCollectiveZone(zoneId, levelMin, levelMax))
+            // Collective world scaling: nobody around yet, so moved into the zone's bracket the way the randomizer
+            // would (a kept level 18 creature in a 1-10 zone doesn't show up as 18 before it rescales to whoever comes)
+            uint8 target = level;
+            if (config.collectiveWorld && sDynamicScaling->RemapToCollectiveZone(zoneId, target))
             {
-                uint8 target = std::clamp<uint8>(level, levelMin, levelMax);
                 if (target != level)
                 {
                     level = target;
@@ -326,9 +344,12 @@ private:
 
         // Is this place scaled at all (for either mode)?
         ZoneSettings settings;
-        if (!sDynamicScaling->GetZoneSettings(creature->GetMapId(), creature->GetZoneId(), creature->GetAreaId(),
-            settings, ScalingMode::Advanced) ||
-            !sDynamicScaling->IsCreatureEligible(creature, true))
+        bool scaledPlace = sDynamicScaling->GetZoneSettings(creature->GetMapId(), creature->GetZoneId(),
+            creature->GetAreaId(), settings, ScalingMode::Advanced);
+        // Collective world scaling: a creature this module never scales keeps the level it was moved to at spawn
+        if (scaledPlace && config.collectiveWorld && !sDynamicScaling->IsCreatureEligible(creature, true))
+            return;
+        if (!scaledPlace || !sDynamicScaling->IsCreatureEligible(creature, true))
         {
             if (info->scaledLevel)
             {
@@ -351,12 +372,10 @@ private:
         {
             // Only players who turned scaling off are watching: show them the real level (with collective world
             // scaling, the real level squeezed into the zone's bracket, as the randomizer would have it)
-            uint8 levelMin = 0;
-            uint8 levelMax = 0;
+            uint8 target = info->originalLevel;
             if (onlyOptedOut && config.collectiveWorld &&
-                sDynamicScaling->GetCollectiveZone(creature->GetZoneId(), levelMin, levelMax))
+                sDynamicScaling->RemapToCollectiveZone(creature->GetZoneId(), target))
             {
-                uint8 target = std::clamp<uint8>(info->originalLevel, levelMin, levelMax);
                 if (target != creature->GetLevel())
                 {
                     info->worldMode = ScalingMode::Off;

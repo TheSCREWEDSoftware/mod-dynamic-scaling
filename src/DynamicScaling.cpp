@@ -561,13 +561,14 @@ void DynamicScalingMgr::LoadCollective()
     }
 
     if (_config.collectiveWorld)
-        if (QueryResult result = WorldDatabase.Query("SELECT `zone_id`, `level_min`, `level_max` "
-            "FROM `world_randomizer_zone_bracket`"))
+        if (QueryResult result = WorldDatabase.Query("SELECT `zone_id`, `level_min`, `level_max`, `home_min`, "
+            "`home_max` FROM `world_randomizer_zone_bracket`"))
         {
             do
             {
                 Field* fields = result->Fetch();
-                _collectiveZones[fields[0].Get<uint32>()] = { fields[1].Get<uint8>(), fields[2].Get<uint8>() };
+                _collectiveZones[fields[0].Get<uint32>()] = { fields[1].Get<uint8>(), fields[2].Get<uint8>(),
+                    fields[3].Get<uint8>(), fields[4].Get<uint8>() };
             } while (result->NextRow());
         }
 
@@ -771,8 +772,27 @@ bool DynamicScalingMgr::GetCollectiveZone(uint32 zoneId, uint8& levelMin, uint8&
     if (itr == _collectiveZones.end())
         return false;
 
-    levelMin = itr->second.first;
-    levelMax = itr->second.second;
+    levelMin = itr->second.levelMin;
+    levelMax = itr->second.levelMax;
+    return true;
+}
+
+bool DynamicScalingMgr::RemapToCollectiveZone(uint32 zoneId, uint8& level) const
+{
+    auto itr = _collectiveZones.find(zoneId);
+    if (itr == _collectiveZones.end())
+        return false;
+
+    // Same as WorldRandomizerMgr::RemapLevel
+    CollectiveZone const& zone = itr->second;
+    int32 result;
+    if (zone.homeMax <= zone.homeMin)
+        result = int32(zone.levelMin) + std::clamp<int32>(int32(level) - int32(zone.homeMin), 0,
+            int32(zone.levelMax) - int32(zone.levelMin));
+    else
+        result = int32(zone.levelMin) + (int32(level) - int32(zone.homeMin)) *
+            (int32(zone.levelMax) - int32(zone.levelMin)) / (int32(zone.homeMax) - int32(zone.homeMin));
+    level = ClampLevel(result);
     return true;
 }
 
