@@ -2,7 +2,7 @@
  * mod-dynamic-scaling: server side of the DynamicScaling addon (addon/DynamicScaling).
  *
  * The addon whispers to the player themself with the prefix DSCALE:
- *   client -> server  "HELLO"            your choice and the place you are in
+ *   client -> server  "HELLO\t<version>"  your choice and the place you are in (older addons send no version)
  *                     "SET\t<0|1|2>"     choose Off / Simple / Advanced
  *                     "NEAR"             creatures around you, with their levels in each mode
  *   server -> client  "M\t<mode>\t<can choose 0/1>\t<off quest credit levels>\t<simple trail>\t<advanced trail>\t
@@ -10,6 +10,10 @@
  *                     "Z\t<zone>\t<area>\t<scaled 0/1>\t<advanced min>\t<advanced max>\t<instance 0/1>"
  *                     "N\t<entry>\t<name>\t<own>\t<simple>\t<advanced>\t<now>\t<count>"  (0 = not scaled there)
  *                     "E\t<request>\t<count>"  end of a reply;  "X\t<error>"
+ *                     "V\t<version>"   the addon version this module expects (sent on HELLO)
+ *
+ * DS_ADDON_VERSION goes up whenever the addon and this file change together; the addon's ADDON_VERSION
+ * (addon/DynamicScaling/DynamicScaling.lua) must match it.
  */
 
 #include "DynamicScaling.h"
@@ -33,6 +37,7 @@
 namespace
 {
     constexpr char const* ADDON_PREFIX = "DSCALE";
+    constexpr uint32 DS_ADDON_VERSION = 2;
     constexpr std::size_t NEAR_LIMIT = 40;
 
     void Send(Player* player, std::string const& body)
@@ -143,8 +148,15 @@ namespace
         }
 
         std::string body = msg.substr(prefix.size());
-        if (body == "HELLO")
+        if (body == "HELLO" || body.compare(0, 6, "HELLO\t") == 0)
         {
+            // Which addon version is talking: tell the player (in chat, which every version shows) if it doesn't match
+            uint32 version = body.size() > 6 ? uint32(std::max(0, std::atoi(body.c_str() + 6))) : 1;
+            Send(player, Acore::StringFormat("V\t{}", DS_ADDON_VERSION));
+            if (version != DS_ADDON_VERSION)
+                ChatHandler(player->GetSession()).PSendSysMessage("|cff4CFF00[Dynamic Scaling]|r Your addon is version "
+                    "{}, this server expects version {}: {} it from the module's addon folder (addon/DynamicScaling).",
+                    version, DS_ADDON_VERSION, version < DS_ADDON_VERSION ? "update" : "use the matching version of");
             SendMode(player);
             SendZone(player);
             Send(player, "E\tHELLO\t0");

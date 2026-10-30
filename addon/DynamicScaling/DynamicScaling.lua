@@ -6,6 +6,8 @@
 -- /dscale choose   show the choice again
 
 local PREFIX = "DSCALE"
+local ADDON_VERSION = 2   -- must match DS_ADDON_VERSION in the module (src/DynamicScalingAddon.cpp)
+local serverVersion      -- what the module expects, from its "V" reply
 local ROWS = 12
 local ROW_HEIGHT = 20
 local MODE_NAMES = { [0] = "No Scaling", [1] = "Simple", [2] = "Advanced" }
@@ -292,7 +294,7 @@ local function UpdateFrame()
 end
 
 frame:SetScript("OnShow", function()
-    Send("HELLO")
+    Send("HELLO\t" .. ADDON_VERSION)
     Send("NEAR")
     UpdateFrame()
 end)
@@ -348,6 +350,8 @@ local function OnMessage(message)
         end
         if chooser:IsShown() then UpdateChooser() end
         if frame:IsShown() then UpdateFrame() end
+    elseif kind == "V" then
+        serverVersion = tonumber(parts[2])
     elseif kind == "X" then
         Print(parts[2] or "")
         if parts[2] and parts[2]:find("off on this server") then Disable() end
@@ -394,7 +398,7 @@ events:SetScript("OnUpdate", function(self, elapsed)
             loginDelay = nil
             askPending = true
             replyTimeout = 10
-            Send("HELLO")
+            Send("HELLO\t" .. ADDON_VERSION)
         end
     elseif replyTimeout then
         if available then
@@ -421,7 +425,7 @@ SlashCmdList["DSCALE"] = function(arg)
         return
     end
     if arg == "choose" then
-        Send("HELLO")
+        Send("HELLO\t" .. ADDON_VERSION)
         chooser:Show()
     elseif frame:IsShown() then
         frame:Hide()
@@ -444,7 +448,12 @@ local function UI_DB()
 end
 local function UI_STATUS()
     if available then
-        return "|cff4CFF00Connected.|r Your scaling: " .. (MODE_NAMES[state.mode] or "?") .. "."
+        local versionText = "Addon version " .. ADDON_VERSION .. "."
+        if serverVersion and serverVersion ~= ADDON_VERSION then
+            versionText = "|cffFF6060Addon version " .. ADDON_VERSION .. ", the server expects " .. serverVersion ..
+                ": update the addon.|r"
+        end
+        return "|cff4CFF00Connected.|r Your scaling: " .. (MODE_NAMES[state.mode] or "?") .. ". " .. versionText
     end
     if available == false then
         return "|cffFF6060Not available:|r this server doesn't run the Dynamic Scaling module (off until your next " ..
