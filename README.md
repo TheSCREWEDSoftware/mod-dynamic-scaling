@@ -131,8 +131,10 @@ Google Sheets version: [make your own copy](https://docs.google.com/spreadsheets
 ## The addon
 
 `addon/DynamicScaling` is a client addon (3.3.5): copy it to `Interface/AddOns`, or unzip
-`DynamicScaling.zip` from the repository's Releases there (each addon version is released by itself,
-`.github/workflows/addon-release.yml`). On login it asks which leveling
+`DynamicScaling.zip` from the repository's Releases there. New addon versions are released by hand: Actions >
+**Addon release** > Run workflow with the version (a whole number), which writes it to the `.toc`, the addon's
+`ADDON_VERSION` and the module's `DS_ADDON_VERSION`, commits that, then makes the `v<version>` release with the zip
+(`.github/workflows/addon-release.yml`). On login it asks which leveling
 experience you want (No Scaling, Simple or Advanced), with "Do not ask again on next login" (this character) and "Do not
 ask on new characters" (every character). `/dscale` opens a window with your choice and the creatures around you: their
 own level, and what they would be for you in Simple and Advanced. It talks to the server with addon whispers (prefix
