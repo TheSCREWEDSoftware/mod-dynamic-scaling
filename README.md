@@ -57,6 +57,15 @@ config, and they split the work:
 
 Turn either switch off and the two modules ignore each other.
 
+## Updating your config file
+
+After updating the module, the
+[config update page](https://thescrewedsoftware.github.io/mod-world-randomizer-website/config.html) brings your
+`mod-dynamic-scaling.conf` to the newest layout: drop the file on it, your values are kept, new settings get their
+default, and you download the new file plus the old one as a backup. It runs in your browser; nothing is uploaded.
+It is part of the [mod-world-randomizer website](https://github.com/TheSCREWEDSoftware/mod-world-randomizer-website)
+(to run it locally, see that repository).
+
 ## Where settings come from
 
 The most specific row wins:
