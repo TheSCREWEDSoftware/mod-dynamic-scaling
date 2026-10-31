@@ -7,6 +7,7 @@
 #   - the addon's Lua (ADDON_VERSION)
 #   - the module's C++ (the number the server expects; rebuild the server to use it)
 # The release is tagged vN and has <Addon>.zip, the addon folder ready to unzip into Interface\AddOns.
+# A run with no addon changes since the last release releases nothing.
 #
 # Showing the current version in the Run workflow form and in the run's title: GitHub can't read it from the .toc
 # there, so this file holds it as text (run-name and the version description). GitHub's own token may not change
@@ -48,6 +49,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          fetch-depth: 0   # every commit and tag, to compare the addon with the last release
 
       - name: Check the version
         env:
@@ -69,12 +71,23 @@ jobs:
             echo "::error::The version must be a whole number like 5 (no v, no dots), got '$VERSION'."
             exit 1
           fi
+          # Nothing new in the addon since the last release: nothing to release (not an error)
+          last=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -n1)
+          if [ -n "$last" ] && git diff --quiet "$last" HEAD -- "$ADDON_DIR"; then
+            echo "::notice::The addon hasn't changed since $last, so there is nothing to release."
+            echo "- **Skipped:** the addon hasn't changed since $last." >> "$GITHUB_STEP_SUMMARY"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          [ -n "$last" ] && echo "- Addon changes since $last: $(git diff --shortstat "$last" HEAD -- "$ADDON_DIR")" \
+            >> "$GITHUB_STEP_SUMMARY"
           if gh release view "v$VERSION" > /dev/null 2>&1 || git ls-remote --exit-code --tags origin "v$VERSION" > /dev/null 2>&1; then
-            echo "::error::v$VERSION is already released or tagged. Pick a higher version."
+            echo "::error::v$VERSION is already released, but the addon changed since $last. Type a higher version."
             exit 1
           fi
 
       - name: Write the version to the .toc, the Lua and the module
+        if: env.SKIP != '1'
         run: |
           set -e
           toc="$ADDON_DIR/$ADDON_NAME.toc"
@@ -87,6 +100,7 @@ jobs:
           git diff --stat
 
       - name: Show the new version in this workflow's form and run title (needs RELEASE_TOKEN)
+        if: env.SKIP != '1'
         env:
           HAS_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
         run: |
@@ -100,6 +114,7 @@ jobs:
           fi
 
       - name: Commit and push the new version
+        if: env.SKIP != '1'
         run: |
           set -e
           if git diff --quiet; then
@@ -112,6 +127,7 @@ jobs:
           fi
 
       - name: Package and release
+        if: env.SKIP != '1'
         env:
           NOTES: ${{ inputs.notes }}
           GH_TOKEN: ${{ github.token }}
