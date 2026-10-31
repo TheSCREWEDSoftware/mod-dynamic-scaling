@@ -6,7 +6,7 @@
 -- /dscale choose   show the choice again
 
 local PREFIX = "DSCALE"
-local ADDON_VERSION = 2   -- must match DS_ADDON_VERSION in the module (src/DynamicScalingAddon.cpp)
+local ADDON_VERSION = 3   -- must match DS_ADDON_VERSION in the module (src/DynamicScalingAddon.cpp)
 local serverVersion      -- what the module expects, from its "V" reply
 local ROWS = 12
 local ROW_HEIGHT = 20
@@ -310,6 +310,46 @@ end
 
 local Disable
 
+
+-- Version check: the server tells us the addon version it expects ("V"). If ours differs, say so once per login in
+-- a popup with the download link (WoW can't open links, so it's in a box to copy). The releases are tagged v<version>.
+local RELEASES_URL = "https://github.com/TheSCREWEDSoftware/mod-dynamic-scaling/releases"
+local versionWarned
+local function CheckVersion()
+    if versionWarned or not serverVersion or serverVersion == ADDON_VERSION then return end
+    versionWarned = true
+    local older = ADDON_VERSION < serverVersion
+    local url = older and (RELEASES_URL .. "/tag/v" .. serverVersion) or RELEASES_URL
+    local text
+    if older then
+        text = "Dynamic Scaling is out of date: you have version " .. ADDON_VERSION ..
+            ", this server uses version " .. serverVersion .. ".\n\nDownload version " .. serverVersion ..
+            " (select the link and press Ctrl+C):"
+    else
+        text = "This server runs an older version of the module than your Dynamic Scaling addon (server " ..
+            serverVersion .. ", addon " .. ADDON_VERSION .. "). Ask the server's admin to update it, or use " ..
+            "addon version " .. serverVersion .. " from the releases:"
+    end
+    Print(text:gsub("\n\n", " ") .. " " .. url)
+    StaticPopupDialogs["DSCALE_VERSION"] = {
+        text = text, button1 = OKAY, hasEditBox = 1, timeout = 0, whileDead = true, hideOnEscape = true,
+        OnShow = function(self)
+            local box = _G[self:GetName() .. "EditBox"]
+            box:SetWidth(330)
+            box:SetText(url)
+            box:HighlightText()
+            box:SetFocus()
+        end,
+        EditBoxOnEnterPressed = function(self) self:GetParent():Hide() end,
+        EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+        -- Keep the link intact if the box is typed in
+        EditBoxOnTextChanged = function(self)
+            if self:GetText() ~= url then self:SetText(url); self:HighlightText() end
+        end,
+    }
+    StaticPopup_Show("DSCALE_VERSION")
+end
+
 local function OnMessage(message)
     local parts = Split(message)
     local kind = parts[1]
@@ -352,6 +392,7 @@ local function OnMessage(message)
         if frame:IsShown() then UpdateFrame() end
     elseif kind == "V" then
         serverVersion = tonumber(parts[2])
+        CheckVersion()
     elseif kind == "X" then
         Print(parts[2] or "")
         if parts[2] and parts[2]:find("off on this server") then Disable() end

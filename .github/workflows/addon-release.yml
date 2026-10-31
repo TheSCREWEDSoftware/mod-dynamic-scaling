@@ -7,13 +7,22 @@
 #   - the addon's Lua (ADDON_VERSION)
 #   - the module's C++ (the number the server expects; rebuild the server to use it)
 # The release is tagged vN and has <Addon>.zip, the addon folder ready to unzip into Interface\AddOns.
+#
+# Showing the current version in the Run workflow form and in the run's title: GitHub can't read it from the .toc
+# there, so this file holds it as text (run-name and the version description). GitHub's own token may not change
+# workflow files, so to keep that text in step after a version change, add a secret named RELEASE_TOKEN (Settings >
+# Secrets and variables > Actions): a fine-grained personal access token for this repository with Contents and
+# Workflows set to Read and write. Without it everything else works; only that text stays at the old number.
 name: Addon release
+# The run's title. The fallback number is the current version: the workflow keeps it (and the "current" in the
+# version box below) up to date when it has a RELEASE_TOKEN secret, see the end of this file's comments.
+run-name: "Addon Release Version: ${{ inputs.version || '3' }}"
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version: leave empty to release the current one (from the .toc), or type a higher whole number to change to it first"
+        description: "Version (current: 3). Leave empty to release v3, or type a higher whole number to change to it first"
         required: false
         default: ""
         type: string
@@ -37,6 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
       - name: Check the version
         env:
@@ -74,6 +85,19 @@ jobs:
           grep -q "^local ADDON_VERSION = $VERSION\b" "$LUA_FILE" || { echo "::error::Could not set ADDON_VERSION in $LUA_FILE"; exit 1; }
           grep -q "constexpr uint32 $CPP_NAME = $VERSION;" "$CPP_FILE" || { echo "::error::Could not set $CPP_NAME in $CPP_FILE"; exit 1; }
           git diff --stat
+
+      - name: Show the new version in this workflow's form and run title (needs RELEASE_TOKEN)
+        env:
+          HAS_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+        run: |
+          set -e
+          wf=.github/workflows/addon-release.yml
+          if [ "$HAS_TOKEN" = "true" ]; then
+            sed -i -E "s/(inputs\.version \|\| ')[0-9]+(' \}\})/\1$VERSION\2/" "$wf"
+            sed -i -E "s/Version \(current: [0-9]+\)\. Leave empty to release v[0-9]+,/Version (current: $VERSION). Leave empty to release v$VERSION,/" "$wf"
+          elif ! grep -q "(current: $VERSION)" "$wf"; then
+            echo "::warning::The Run workflow form still says the old current version: add a RELEASE_TOKEN secret to keep it up to date (see the comments at the top of $wf)."
+          fi
 
       - name: Commit and push the new version
         run: |

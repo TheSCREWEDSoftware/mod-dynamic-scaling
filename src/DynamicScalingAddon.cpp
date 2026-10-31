@@ -37,7 +37,7 @@
 namespace
 {
     constexpr char const* ADDON_PREFIX = "DSCALE";
-    constexpr uint32 DS_ADDON_VERSION = 2;
+    constexpr uint32 DS_ADDON_VERSION = 3;
     constexpr std::size_t NEAR_LIMIT = 40;
 
     void Send(Player* player, std::string const& body)
@@ -155,8 +155,10 @@ namespace
             Send(player, Acore::StringFormat("V\t{}", DS_ADDON_VERSION));
             if (version != DS_ADDON_VERSION)
                 ChatHandler(player->GetSession()).PSendSysMessage("|cff4CFF00[Dynamic Scaling]|r Your addon is version "
-                    "{}, this server expects version {}: {} it from the module's addon folder (addon/DynamicScaling).",
-                    version, DS_ADDON_VERSION, version < DS_ADDON_VERSION ? "update" : "use the matching version of");
+                    "{}, this server expects version {}: {} it from "
+                    "https://github.com/TheSCREWEDSoftware/mod-dynamic-scaling/releases/tag/v{}", version,
+                    DS_ADDON_VERSION, version < DS_ADDON_VERSION ? "update" : "use the matching version of",
+                    DS_ADDON_VERSION);
             SendMode(player);
             SendZone(player);
             Send(player, "E\tHELLO\t0");
