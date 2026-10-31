@@ -202,3 +202,6 @@ Ideas and mechanisms from:
   timer, what gets reset) and the list of raid bosses and encounters.
 - TrinityCore's level scaling (`Creature::GetLevelForTarget` / content tuning) was read for comparison; it
   needs per-player levels that a 3.3.5 client can't show, so this module uses one level per creature instead.
+
+Made with the help of [Claude](https://claude.ai), Anthropic's AI assistant: written and reviewed together with it, then
+tested and published by [Ryan Turner (TheSCREWEDSoftware)](https://github.com/TheSCREWEDSoftware).
