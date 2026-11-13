@@ -1,8 +1,29 @@
+###################################################################################################
+# mod-dynamic-scaling configuration
+###################################################################################################
 [worldserver]
 
-########################################
-# mod-dynamic-scaling configuration
-########################################
+###################################################################################################
+# SECTION INDEX
+#
+#    WHERE SETTINGS COME FROM
+#    GENERAL
+#    WITH MOD-WORLD-RANDOMIZER
+#    INSTANCES
+#    INSTANCES - SIMPLE MODE
+#    INSTANCES - ADVANCED MODE
+#    INSTANCES - ENTRY LEVELS
+#    INSTANCES - RESPAWN AT THE ENTRANCE
+#    OPEN WORLD
+#    OPEN WORLD - XP, QUESTS AND REWARDS
+#    OPEN WORLD - LOOT SWAP
+#    OPEN WORLD - QUEST LEVELS
+#    COOLDOWN RESETS
+#
+###################################################################################################
+
+###################################################################################################
+# WHERE SETTINGS COME FROM
 #
 # Where settings come from, most specific first:
 #   1. `dynamic_scaling_zone` row for the area     (e.g. Northshire Valley)
@@ -14,7 +35,11 @@
 #   N  = creatures never go below / above level N
 #   0  = creatures never go below / above their own level
 #   0/0 = creatures keep their own level (cities, starting areas)
+#
+###################################################################################################
 
+###################################################################################################
+# GENERAL
 #
 #    DynamicScaling.Enable
 #        Description: Turn the whole module on or off.
@@ -57,6 +82,11 @@ DynamicScaling.PlayerToggle.Enable = 1
 DynamicScaling.PlayerToggle.Default = 1
 
 #
+###################################################################################################
+
+###################################################################################################
+# WITH MOD-WORLD-RANDOMIZER
+#
 #    DynamicScaling.Collective.WorldRandomizer
 #        Description: Work together with mod-world-randomizer. Only takes effect when that module is installed and
 #                     enabled (Randomizer.Enable and Randomizer.World.Enable) and its own switch
@@ -86,9 +116,11 @@ DynamicScaling.Collective.WorldRandomizer = 1
 
 DynamicScaling.Collective.WorldScaling = 1
 
-########################################
-# Instances (dungeons and raids)
-########################################
+#
+###################################################################################################
+
+###################################################################################################
+# INSTANCES
 #
 #    DynamicScaling.Instance.Enable
 #        Description: Scale instances.
@@ -144,6 +176,11 @@ DynamicScaling.Instance.LevelScaling.DefaultLevelMin = 1
 DynamicScaling.Instance.LevelScaling.DefaultLevelMax = 80
 
 #
+###################################################################################################
+
+###################################################################################################
+# INSTANCES - SIMPLE MODE
+#
 #    DynamicScaling.Instance.Simple.SpellId
 #        Description: Server side aura that carries the Simple mode stat buff (see the SQL file).
 #        Default:     150100
@@ -173,6 +210,11 @@ DynamicScaling.Instance.Simple.SpellPowerMult = 1.0
 
 DynamicScaling.Instance.Simple.XPPenalty = 0
 
+#
+###################################################################################################
+
+###################################################################################################
+# INSTANCES - ADVANCED MODE
 #
 #    DynamicScaling.Instance.Advanced.HealthFloor
 #    DynamicScaling.Instance.Advanced.DamageFloor
@@ -232,6 +274,11 @@ DynamicScaling.Instance.Advanced.BossInflectionModifier = 1.0
 DynamicScaling.Instance.Advanced.BossMult = 1.0
 
 #
+###################################################################################################
+
+###################################################################################################
+# INSTANCES - ENTRY LEVELS
+#
 #    DynamicScaling.Instance.LFG.EntryLevel
 #        Description: A map row's entry_level_min also opens the dungeon in the Dungeon Finder: a dungeon locked
 #                     only because you are too low for it can be queued from entry_level_min.
@@ -261,6 +308,11 @@ DynamicScaling.Instance.DefaultEntryLevel.Raids = 0
 
 DynamicScaling.Instance.LFG.UILevel = 0
 
+#
+###################################################################################################
+
+###################################################################################################
+# INSTANCES - RESPAWN AT THE ENTRANCE
 #
 #    DynamicScaling.Instance.Respawn.Enable
 #        Description: Releasing your spirit inside an instance brings you back alive at the instance entrance
@@ -293,9 +345,11 @@ DynamicScaling.Instance.Respawn.RagePct = 0
 DynamicScaling.Instance.Respawn.EnergyPct = 50
 DynamicScaling.Instance.Respawn.RunicPowerPct = 0
 
-########################################
-# Open world
-########################################
+#
+###################################################################################################
+
+###################################################################################################
+# OPEN WORLD
 #
 #    DynamicScaling.World.Enable
 #        Description: Scale open world creatures to trail behind the player's level.
@@ -423,6 +477,11 @@ DynamicScaling.World.UseDBOverride = 0
 DynamicScaling.World.NeverScale = "NpcFlags Civilian Guard PvP Unattackable WorldBoss Boss"
 
 #
+###################################################################################################
+
+###################################################################################################
+# OPEN WORLD - XP, QUESTS AND REWARDS
+#
 #    DynamicScaling.World.Off.NoQuestCreditLevels
 #        Description: Players with scaling off: creatures this many levels or more below them give no quest
 #                     progress and drop no quest items (open world, scaled places only), like Ascension.
@@ -514,6 +573,11 @@ DynamicScaling.World.LootMoney.Scale = 1
 DynamicScaling.World.LootItems.MaxLevelsAbove = 5
 
 #
+###################################################################################################
+
+###################################################################################################
+# OPEN WORLD - LOOT SWAP
+#
 #    DynamicScaling.World.LootSwap.Enable
 #        Description: A creature scaled outside the reward margins rolls the level range loot tables of its scaled
 #                     level instead of its own. They are the reference tables 1000000-1299999 (1, expansion, kind,
@@ -557,6 +621,11 @@ DynamicScaling.World.LootSwap.TBCFromLevel = 61
 DynamicScaling.World.LootSwap.WrathFromLevel = 71
 
 #
+###################################################################################################
+
+###################################################################################################
+# OPEN WORLD - QUEST LEVELS
+#
 #    DynamicScaling.World.QuestMinLevel.Enable
 #        Description: Lower quest level requirements where you are scaled (you stand by the quest giver):
 #                     Simple - any level; Advanced - the zone's level_min at most; Off - unchanged.
@@ -568,9 +637,11 @@ DynamicScaling.World.LootSwap.WrathFromLevel = 71
 
 DynamicScaling.World.QuestMinLevel.Enable = 1
 
-########################################
-# Cooldown resets (instances, battlegrounds, arenas, duels)
-########################################
+#
+###################################################################################################
+
+###################################################################################################
+# COOLDOWN RESETS
 #
 # Defeating a boss, or wiping on it after CombatTimeRequired seconds, resets the cooldowns of everyone in the
 # instance and clears Sated / Exhaustion, like Wrath Classic after raid encounters. The mechanic is by sogladev.
@@ -686,3 +757,6 @@ DynamicScaling.CooldownReset.RemoveSated = 1
 #        Default:     0 - disabled
 
 DynamicScaling.CooldownReset.PetCooldowns = 0
+
+#
+###################################################################################################
