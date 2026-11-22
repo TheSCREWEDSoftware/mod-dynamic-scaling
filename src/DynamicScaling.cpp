@@ -16,6 +16,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "WorldSession.h"
 #include "QuestDef.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
@@ -158,6 +159,7 @@ void DynamicScalingMgr::LoadConfig()
     c.worldReference = ToReference(sConfigMgr->GetOption<uint32>("DynamicScaling.World.Reference", 3),
         LevelReference::Nearest);
     c.worldGroupAverage = sConfigMgr->GetOption<bool>("DynamicScaling.World.GroupAverage", true);
+    c.ignoreBots = sConfigMgr->GetOption<bool>("DynamicScaling.IgnoreBots", true);
     c.worldRange = sConfigMgr->GetOption<float>("DynamicScaling.World.Range", 0.0f);
     c.worldSilentLevelChange = sConfigMgr->GetOption<bool>("DynamicScaling.World.SilentLevelChange", true);
     c.worldScaleOnEngage = sConfigMgr->GetOption<bool>("DynamicScaling.World.ScaleOnEngage", true);
@@ -1344,6 +1346,22 @@ void DynamicScalingMgr::ForgetPlayer(Player* player)
     _playerBuffs.erase(player->GetGUID().GetCounter());
     _playerChoices.erase(player->GetGUID().GetCounter());
     _lastAnnounced.erase(player->GetGUID().GetCounter());
+}
+
+// A bot (mod-playerbots) is a player with no game client behind it: its session has no socket.
+bool DynamicScalingMgr::IsBot(Player const* player)
+{
+    WorldSession* session = player ? player->GetSession() : nullptr;
+    return session && session->IsSocketClosed();
+}
+
+// Who pulls creature levels: players who didn't turn scaling off, and (DynamicScaling.IgnoreBots) only real players,
+// so creatures near bots alone keep their own level, and a party's bots don't change it either.
+bool DynamicScalingMgr::IsScalingFor(Player const* player) const
+{
+    if (_config.ignoreBots && IsBot(player))
+        return false;
+    return GetPlayerMode(player) != ScalingMode::Off;
 }
 
 ScalingMode DynamicScalingMgr::GetPlayerMode(Player const* player) const

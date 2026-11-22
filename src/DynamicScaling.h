@@ -229,6 +229,7 @@ struct DSConfig
     uint8 worldLevelSpread = 1;
     LevelReference worldReference = LevelReference::Nearest;
     bool worldGroupAverage = true;
+    bool ignoreBots = true;        // bots (no game client) never set creature levels
     float worldRange = 0.0f;               // 0 = the map's visibility distance
     bool worldSilentLevelChange = true;    // re-send the creature instead of a visible level change
     bool worldScaleOnEngage = true;        // rescale to the player a creature engages
@@ -339,7 +340,8 @@ public:
 
     // Player choice: Off, Simple or Advanced
     ScalingMode GetPlayerMode(Player const* player) const;
-    bool IsScalingFor(Player const* player) const { return GetPlayerMode(player) != ScalingMode::Off; }
+    bool IsScalingFor(Player const* player) const;
+    static bool IsBot(Player const* player);
     void LoadPlayerChoice(Player* player);
     void SetPlayerChoice(Player* player, ScalingMode mode);
     static char const* ModeName(ScalingMode mode);

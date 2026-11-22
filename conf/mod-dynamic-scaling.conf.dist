@@ -410,6 +410,15 @@ DynamicScaling.World.Reference = 3
 DynamicScaling.World.GroupAverage = 1
 
 #
+#    DynamicScaling.IgnoreBots
+#        Description: 1 = bots (mod-playerbots, or any character with no game client) never set creature levels:
+#                     creatures near bots alone keep their own level, and the bots in a player's party don't count
+#                     for the party's level. 0 = bots count like players.
+#        Default:     1
+
+DynamicScaling.IgnoreBots = 1
+
+#
 #    DynamicScaling.World.Range
 #        Description: Yards around a creature to look for players. 0 = the map's visibility distance
 #                     (Visibility.Distance.Continents), so every creature you can see scales to you.
