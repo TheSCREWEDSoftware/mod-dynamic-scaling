@@ -604,12 +604,12 @@ optionsTitle:SetText(UI_TITLE)
 
 local optionsText = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 optionsText:SetPoint("TOPLEFT", optionsTitle, "BOTTOMLEFT", 0, -8)
-optionsText:SetWidth(560)
+optionsText:SetPoint("RIGHT", optionsPanel, "RIGHT", -16, 0)   -- wraps inside the Interface Options page
 optionsText:SetJustifyH("LEFT")
 
 local optionsStatus = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 optionsStatus:SetPoint("TOPLEFT", optionsText, "BOTTOMLEFT", 0, -12)
-optionsStatus:SetWidth(560)
+optionsStatus:SetPoint("RIGHT", optionsPanel, "RIGHT", -16, 0)   -- wraps inside the Interface Options page
 optionsStatus:SetJustifyH("LEFT")
 
 local minimapCheck = CreateFrame("CheckButton", UI_NAME .. "MinimapCheck", optionsPanel,
