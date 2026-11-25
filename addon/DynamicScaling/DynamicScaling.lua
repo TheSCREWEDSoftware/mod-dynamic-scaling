@@ -28,6 +28,29 @@ local incoming = {}
 local newCharacter = false
 local askPending = false
 local available = nil    -- nil: still asking the server, true: the module answered, false: it didn't
+
+-- The server can open the Dungeon Finder before the client's SHOW_LFD_LEVEL (15). The Blizzard global is not written
+-- (Blizzard's micro button and ToggleLFDParentFrame read it, and a value set by addon code taints them): post-hooks
+-- enable the micro button and open the frame between the server's level and SHOW_LFD_LEVEL.
+local lfdLevel = 0
+local function lfdEarly()
+    local level = UnitLevel("player")
+    return lfdLevel > 0 and SHOW_LFD_LEVEL and lfdLevel < SHOW_LFD_LEVEL and level >= lfdLevel and level < SHOW_LFD_LEVEL
+end
+if UpdateMicroButtons then
+    hooksecurefunc("UpdateMicroButtons", function()
+        if lfdEarly() and LFDMicroButton and LFDParentFrame and not LFDParentFrame:IsShown() then
+            LFDMicroButton:Enable()
+            LFDMicroButton:SetButtonState("NORMAL")
+        end
+    end)
+end
+if ToggleLFDParentFrame then
+    hooksecurefunc("ToggleLFDParentFrame", function()
+        if not lfdEarly() or not LFDParentFrame then return end   -- at SHOW_LFD_LEVEL the client toggled it itself
+        if LFDParentFrame:IsShown() then HideUIPanel(LFDParentFrame) else ShowUIPanel(LFDParentFrame) end
+    end)
+end
 local replyTimeout       -- seconds left for the first answer
 local minimapButton, optionsPanel
 
@@ -362,9 +385,9 @@ local function OnMessage(message)
         state.simpleTrail = tonumber(parts[5]) or 3
         state.advancedTrail = tonumber(parts[6]) or 2
         -- The server lets the Dungeon Finder open sooner than the client's own level (SHOW_LFD_LEVEL, 15)
-        local lfdLevel = tonumber(parts[7]) or 0
-        if lfdLevel > 0 and SHOW_LFD_LEVEL and lfdLevel ~= SHOW_LFD_LEVEL then
-            SHOW_LFD_LEVEL = lfdLevel
+        local level = tonumber(parts[7]) or 0
+        if level ~= lfdLevel then
+            lfdLevel = level
             if UpdateMicroButtons then UpdateMicroButtons() end
         end
     elseif kind == "Z" then
