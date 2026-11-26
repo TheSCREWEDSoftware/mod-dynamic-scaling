@@ -108,6 +108,10 @@ So `level_min = 0, level_max = 80` means "only scale up", and `level_min = 1, le
 
 The SQL in `data/sql` is applied by the core's DB updater (or `dbimport`) like any module.
 
+When a character is deleted for good (`OnPlayerDeleteFromDB`, in the same transaction as the core's own deletes; not a `CharDelete.Method = 1` unlink, which can be restored), its `dynamic_scaling_player` row is deleted too.
+`data/sql/db-characters/02_dynamic_scaling_player_cleanup.sql` removes rows left by characters deleted before that;
+it is safe to run again.
+
 ## Commands
 
 | Command | Who | What |
