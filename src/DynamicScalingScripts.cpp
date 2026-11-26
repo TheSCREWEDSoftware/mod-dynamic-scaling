@@ -2,6 +2,7 @@
  * mod-dynamic-scaling: script hooks.
  */
 
+#include "DatabaseEnv.h"
 #include "DynamicScaling.h"
 
 #include "Chat.h"
@@ -1038,6 +1039,20 @@ public:
     }
 };
 
+// a deleted character's .scaling on/off choice (dynamic_scaling_player) goes with it
+// OnPlayerDeleteFromDB: only when the character is really removed (not a CharDelete.Method = 1 unlink, which can be
+// restored), and in the same transaction as the core's own deletes.
+class DynamicScalingDeleteScript : public PlayerScript
+{
+public:
+    DynamicScalingDeleteScript() : PlayerScript("DynamicScalingDeleteScript", { PLAYERHOOK_ON_DELETE_FROM_DB }) { }
+
+    void OnPlayerDeleteFromDB(CharacterDatabaseTransaction trans, uint32 guid) override
+    {
+        trans->Append("DELETE FROM `dynamic_scaling_player` WHERE `guid` = {}", guid);
+    }
+};
+
 void AddDynamicScalingScripts()
 {
     new DynamicScalingGlobalScript();
@@ -1047,4 +1062,5 @@ void AddDynamicScalingScripts()
     new DynamicScalingMapScript();
     new DynamicScalingPlayerScript();
     new DynamicScalingGroupScript();
+    new DynamicScalingDeleteScript();
 }
